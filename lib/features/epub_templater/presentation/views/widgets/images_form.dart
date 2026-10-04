@@ -6,9 +6,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
 
 import '/common/theme/app_dimensions.dart';
+import '/common/widgets/selection_pill.dart';
 import '/common/widgets/toggle_field.dart';
 import '/common/widgets/file_drop_button.dart';
-import '/common/widgets/choice_pill.dart';
+import '/common/widgets/form_section.dart';
 import '../../../../image_optimizer/domain/image_format.dart';
 import '../../../../image_optimizer/domain/optimization_options.dart';
 import '../../../../image_optimizer/presentation/views/widgets/job_status.dart';
@@ -16,7 +17,6 @@ import '../../../data/epub_template_builder.dart';
 import '../../../domain/section_kind.dart';
 import '../../../domain/template_section.dart';
 import '../../cubit/epub_templater_cubit.dart';
-import 'form_fields.dart';
 
 class ImagesForm extends StatelessWidget {
   const ImagesForm({super.key});
@@ -52,12 +52,12 @@ class _OptimizationOptions extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             for (final format in ImageFormat.outputs)
-              ChoicePill(
-                label: format.label,
+              SelectionPill(
                 selected: state.allowedFormats.contains(format),
                 onTap: () => cubit.setAllowedFormats(
                   state.allowedFormats.contains(format) ? ([...state.allowedFormats]..remove(format)) : [...state.allowedFormats, format],
                 ),
+                child: Text(format.label),
               ),
           ],
         ),

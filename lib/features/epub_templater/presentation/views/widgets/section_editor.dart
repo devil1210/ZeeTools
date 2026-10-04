@@ -4,11 +4,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '/common/theme/app_dimensions.dart';
 import '/common/widgets/toggle_field.dart';
 import '/common/widgets/confirm_dialog.dart';
+import '/common/widgets/app_text_field.dart';
+import '/common/widgets/form_section.dart';
+import '/common/widgets/responsive_row.dart';
+import '/common/widgets/outlined_dropdown.dart';
 import '../../../data/epub_template_builder.dart';
 import '../../../domain/section_kind.dart';
 import '../../../domain/template_section.dart';
 import '../../cubit/epub_templater_cubit.dart';
-import 'form_fields.dart';
 
 class SectionEditor extends StatelessWidget {
   const SectionEditor({super.key});
@@ -76,7 +79,7 @@ class _SectionForm extends StatelessWidget {
                       ),
                   ],
                 ),
-                TemplateTextField(
+                AppTextField(
                   label: 'Archivo',
                   value: s.fileName,
                   suffix: const Padding(padding: EdgeInsets.all(AppPadding.medium), child: Text('.xhtml')),
@@ -92,13 +95,13 @@ class _SectionForm extends StatelessWidget {
           children: [
             ResponsiveRow(
               children: [
-                TemplateTextField(
+                AppTextField(
                   label: 'Título visible',
                   value: s.title,
                   hint: isTitlePage ? 'Vacío: título del libro' : null,
                   onChanged: (v) => update((s) => s.copyWith(title: v)),
                 ),
-                TemplateTextField(
+                AppTextField(
                   label: 'Subtítulo',
                   value: s.subtitle,
                   helper: 'Se muestra en una segunda línea más pequeña.',
@@ -146,7 +149,7 @@ class _SectionForm extends StatelessWidget {
                   value: s.inToc,
                   onChanged: (v) => update((s) => s.copyWith(inToc: v)),
                 ),
-                TemplateTextField(
+                AppTextField(
                   label: 'Nombre en el índice',
                   value: s.tocLabel,
                   hint: s.copyWith(tocLabel: '').effectiveTocLabel,
@@ -182,7 +185,7 @@ class _SectionForm extends StatelessWidget {
                 for (final type in epubTypeRoles.keys) DropdownMenuItem(value: type, child: Text(type)),
               ],
             ),
-            TemplateTextField(
+            AppTextField(
               label: 'Etiqueta ARIA',
               value: s.ariaLabel,
               helper: 'Vacío: la sección se etiqueta con su encabezado (aria-labelledby).',

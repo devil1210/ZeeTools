@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '/common/theme/app_dimensions.dart';
+import '/common/widgets/form_section.dart';
+import '/common/widgets/outlined_dropdown.dart';
 import '../cubit/settings_cubit.dart';
 import '../cubit/settings_state.dart';
 
@@ -14,47 +17,25 @@ class SettingsView extends StatelessWidget {
       body: BlocBuilder<SettingsCubit, SettingsState>(
         builder: (context, state) {
           return ListView(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(AppPadding.large),
             children: [
-              ListTile(
-                title: const Text('Tema de la aplicación'),
-                subtitle: const Text(
-                  'Elige el tema de la aplicación o usa \'Sistema\' para alinearlo con tu dispositivo.',
-                ),
-                trailing: DropdownMenu<ThemeMode>(
-                  key: ValueKey(state.preferences.themeMode),
-                  initialSelection: state.preferences.themeMode,
-                  requestFocusOnTap: false,
-                  enableFilter: false,
-                  enableSearch: false,
-                  textStyle: const TextStyle(fontSize: 14),
-                  menuStyle: MenuStyle(
-                    padding: WidgetStateProperty.all(EdgeInsets.zero),
+              FormSection(
+                title: 'Apariencia',
+                children: [
+                  OutlinedDropdown<ThemeMode>(
+                    label: 'Tema de la aplicación',
+                    helper: 'Sistema sigue el tema de tu dispositivo.',
+                    value: state.preferences.themeMode,
+                    onChanged: (mode) {
+                      if (mode != null) context.read<SettingsCubit>().changeTheme(mode);
+                    },
+                    items: const [
+                      DropdownMenuItem(value: ThemeMode.system, child: Text('Sistema')),
+                      DropdownMenuItem(value: ThemeMode.light, child: Text('Claro')),
+                      DropdownMenuItem(value: ThemeMode.dark, child: Text('Oscuro')),
+                    ],
                   ),
-                  inputDecorationTheme: InputDecorationTheme(
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  onSelected: (mode) {
-                    if (mode != null) {
-                      context.read<SettingsCubit>().changeTheme(mode);
-                    }
-                  },
-                  dropdownMenuEntries: const [
-                    DropdownMenuEntry(value: ThemeMode.system, label: 'Sistema'),
-                    DropdownMenuEntry(value: ThemeMode.light, label: 'Claro'),
-                    DropdownMenuEntry(value: ThemeMode.dark, label: 'Oscuro'),
-                  ],
-                ),
+                ],
               ),
             ],
           );

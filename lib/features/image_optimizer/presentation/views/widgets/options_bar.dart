@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '/common/theme/app_dimensions.dart';
 import '/common/widgets/selection_pill.dart';
+import '/common/widgets/toggle_field.dart';
 import '../../../domain/image_format.dart';
 import '../../../domain/optimization_options.dart';
 import '../../cubit/image_optimizer_cubit.dart';
@@ -53,18 +55,15 @@ class OptionsBar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Wrap(
+                spacing: AppSpacing.medium,
+                runSpacing: AppSpacing.medium,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Tooltip(
-                    message: 'Apagado, cada imagen solo se optimiza dentro de su propio formato',
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Switch(value: s.allowConversion, onChanged: s.isProcessing ? null : (_) => cubit.toggleConversion()),
-                        const SizedBox(width: 4),
-                        Text('Convertir a', style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant)),
-                        const SizedBox(width: 8),
-                      ],
+                  SizedBox(
+                    width: 200,
+                    child: Tooltip(
+                      message: 'Apagado, cada imagen solo se optimiza dentro de su propio formato',
+                      child: ToggleField(label: 'Convertir a', value: s.allowConversion, onChanged: s.isProcessing ? null : (_) => cubit.toggleConversion()),
                     ),
                   ),
                   for (final format in ImageFormat.outputs)
@@ -73,7 +72,6 @@ class OptionsBar extends StatelessWidget {
                       child: Opacity(
                         opacity: s.allowConversion ? 1 : 0.4,
                         child: SelectionPill(
-                          dense: true,
                           selected: s.allowConversion && s.allowedFormats.contains(format),
                           tooltip: _formatTooltip(format),
                           onTap: () => cubit.toggleFormat(format),
@@ -84,7 +82,7 @@ class OptionsBar extends StatelessWidget {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.only(top: 2, bottom: 2),
+                padding: const EdgeInsets.symmetric(vertical: AppPadding.small),
                 child: Text(
                   s.allowConversion ? 'El formato original siempre se conserva como opción y nunca se elige algo más pesado. Las imágenes con transparencia nunca se convierten a JPEG.' : 'Sin conversión: cada imagen se optimiza dentro de su propio formato (GIF, BMP y TIFF se omiten).',
                   style: tt.labelSmall?.copyWith(color: cs.outline),
@@ -98,7 +96,6 @@ class OptionsBar extends StatelessWidget {
                 children: [
                   SegmentedButton<QualityMode>(
                     showSelectedIcon: false,
-                    style: const ButtonStyle(visualDensity: VisualDensity.compact),
                     segments: const [
                       ButtonSegment(
                         value: QualityMode.lossless,

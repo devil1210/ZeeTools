@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_dimensions.dart';
 
-// Chip seleccionable con efecto de pulsación, en densidad completa o `dense`
-// (más compacta). `child` hereda el color de [selected] vía [IconTheme]/
-// [DefaultTextStyle]; para conservar un color propio, fijarlo explícitamente
-// en el hijo.
+// Opción conmutable con forma de rectángulo redondeado; la selección se indica
+// solo con el color de fondo. `child` hereda el color vía [IconTheme]/
+// [DefaultTextStyle]; para conservar uno propio, fijarlo en el hijo. `dense` la
+// compacta para filas de herramientas.
 class SelectionPill extends StatelessWidget {
   const SelectionPill({
     super.key,
@@ -27,27 +27,28 @@ class SelectionPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final accent = color ?? cs.primary;
-    final tint = selected ? accent : cs.onSurfaceVariant;
-    final shape = (dense ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.small)) : const StadiumBorder()).copyWith(
-      side: BorderSide(color: selected ? accent : cs.outlineVariant),
-    );
-
-    final labelStyle = (Theme.of(context).textTheme.labelSmall ?? const TextStyle()).copyWith(fontWeight: FontWeight.w600, color: tint);
-    final content = IconTheme.merge(
-      data: IconThemeData(size: 14, color: tint),
-      child: DefaultTextStyle.merge(style: labelStyle, child: child),
-    );
+    final background = switch (color) {
+      _ when !selected => cs.surfaceContainer,
+      null => cs.primaryContainer,
+      final accent => accent.withValues(alpha: 0.24),
+    };
+    final foreground = !selected ? cs.onSurfaceVariant : (color ?? cs.onPrimaryContainer);
+    final textTheme = Theme.of(context).textTheme;
+    final labelStyle = ((dense ? textTheme.labelSmall : textTheme.labelLarge) ?? const TextStyle()).copyWith(color: foreground, fontWeight: dense ? FontWeight.w600 : null);
+    final radius = BorderRadius.circular(AppRadius.small);
 
     final pill = Material(
-      color: selected ? accent.withValues(alpha: dense ? 0.2 : 0.16) : Colors.transparent,
-      shape: shape,
+      color: background,
+      borderRadius: radius,
       child: InkWell(
-        customBorder: shape,
+        borderRadius: radius,
         onTap: onTap,
         child: Padding(
-          padding: dense ? const EdgeInsets.symmetric(horizontal: AppPadding.small, vertical: AppPadding.tiny) : const EdgeInsets.symmetric(horizontal: AppPadding.medium, vertical: AppPadding.small),
-          child: content,
+          padding: dense ? const EdgeInsets.symmetric(horizontal: AppPadding.small + AppPadding.tiny, vertical: AppPadding.tiny) : const EdgeInsets.symmetric(horizontal: AppPadding.medium, vertical: AppPadding.small + AppPadding.tiny),
+          child: IconTheme.merge(
+            data: IconThemeData(size: dense ? 14 : 18, color: foreground),
+            child: DefaultTextStyle.merge(style: labelStyle, child: child),
+          ),
         ),
       ),
     );

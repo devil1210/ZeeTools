@@ -8,6 +8,8 @@ import '/inject_dependencies.dart';
 import '/common/epub/models/epub_manifest_item.dart';
 import '/common/epub/models/epub_source.dart';
 import '/common/epub/models/loaded_epub.dart';
+import '/common/widgets/empty_state_pane.dart';
+import '/common/widgets/file_drop_area.dart';
 import '/common/widgets/resizable_split_panel.dart';
 import '/common/widgets/selection_pill.dart';
 import '/common/widgets/speed_dial.dart';
@@ -41,6 +43,7 @@ class _SearchReplaceContent extends StatefulWidget {
 
 class _SearchReplaceContentState extends State<_SearchReplaceContent> {
   final _fabNotifier = getIt<ValueNotifier<List<SpeedDialAction>>>();
+  bool _recursive = false;
 
   @override
   void initState() {
@@ -71,9 +74,7 @@ class _SearchReplaceContentState extends State<_SearchReplaceContent> {
       return true;
     }
 
-    final altCombo = defaultTargetPlatform == TargetPlatform.macOS
-        ? HardwareKeyboard.instance.isMetaPressed && HardwareKeyboard.instance.isAltPressed
-        : HardwareKeyboard.instance.isAltPressed;
+    final altCombo = defaultTargetPlatform == TargetPlatform.macOS ? HardwareKeyboard.instance.isMetaPressed && HardwareKeyboard.instance.isAltPressed : HardwareKeyboard.instance.isAltPressed;
     if (!altCombo) return false;
 
     switch (key) {
@@ -159,13 +160,21 @@ class _SearchReplaceContentState extends State<_SearchReplaceContent> {
           title: const Text('Búsqueda y Reemplazo'),
           actions: const [_AppBarActions()],
         ),
-        body:
-            state.mapOrNull(
-              idle: (_) => _IdlePane(onLoad: context.read<SearchReplaceCubit>().loadSources),
-              loading: (s) => _LoadingPane(message: s.message),
-              failure: (s) => _FailurePane(message: s.message),
-            ) ??
-            const _ReadyPane(),
+        body: FileDropArea(
+          label: 'Suelta aquí EPUBs o carpetas',
+          onDrop: (paths) => context.read<SearchReplaceCubit>().openPaths(paths, recursive: _recursive),
+          child:
+              state.mapOrNull(
+                idle: (_) => _IdlePane(
+                  onLoad: context.read<SearchReplaceCubit>().loadSources,
+                  recursive: _recursive,
+                  onRecursiveChanged: (v) => setState(() => _recursive = v),
+                ),
+                loading: (s) => _LoadingPane(message: s.message),
+                failure: (s) => _FailurePane(message: s.message),
+              ) ??
+              const _ReadyPane(),
+        ),
       ),
     );
   }
@@ -323,80 +332,48 @@ class _FailurePane extends StatelessWidget {
   }
 }
 
-class _IdlePane extends StatefulWidget {
-  const _IdlePane({required this.onLoad});
+class _IdlePane extends StatelessWidget {
+  const _IdlePane({required this.onLoad, required this.recursive, required this.onRecursiveChanged});
+
   final ValueChanged<EpubSource> onLoad;
-
-  @override
-  State<_IdlePane> createState() => _IdlePaneState();
-}
-
-class _IdlePaneState extends State<_IdlePane> {
-  bool _recursive = false;
+  final bool recursive;
+  final ValueChanged<bool> onRecursiveChanged;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.menu_book_outlined, size: 64, color: cs.outline),
-          const SizedBox(height: 16),
-          const Text('Ningún EPUB cargado', textAlign: TextAlign.center),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: [
-              FilledButton.icon(
-                icon: const Icon(Icons.file_open_outlined),
-                label: const Text('Abrir archivo(s)…'),
-                onPressed: () async {
-                  final files = await FilePicker.pickFiles(
-                    type: FileType.custom,
-                    allowedExtensions: ['epub'],
-                    dialogTitle: 'Seleccionar EPUB(s)',
-                    windowsOptions: const WindowsOptions(lockParentWindow: true),
-                    linuxOptions: const LinuxOptions(lockParentWindow: true),
-                  );
-                  final paths = files.map((f) => f.path).whereType<String>().toList();
-                  if (paths.isNotEmpty) {
-                    widget.onLoad(EpubSource.files(paths));
-                  }
-                },
-              ),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.folder_open_outlined),
-                label: const Text('Abrir directorio…'),
-                onPressed: () async {
-                  final path = await FilePicker.getDirectoryPath(
-                    dialogTitle: 'Seleccionar carpeta con EPUBs',
-                    windowsOptions: const WindowsOptions(lockParentWindow: true),
-                    linuxOptions: const LinuxOptions(lockParentWindow: true),
-                  );
-                  if (path != null) {
-                    widget.onLoad(EpubSource.directory(path, recursive: _recursive));
-                  }
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Switch(value: _recursive, onChanged: (v) => setState(() => _recursive = v)),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => setState(() => _recursive = !_recursive),
-                child: Text('Incluir subcarpetas', style: Theme.of(context).textTheme.bodySmall),
-              ),
-            ],
-          ),
-        ],
+    return EmptyStatePane(
+      icon: Icons.menu_book_outlined,
+      title: 'Arrastra aquí EPUBs o carpetas',
+      primary: (
+        icon: Icons.file_open_outlined,
+        label: 'Abrir archivo(s)…',
+        onPressed: () async {
+          final files = await FilePicker.pickFiles(
+            type: FileType.custom,
+            allowedExtensions: ['epub'],
+            dialogTitle: 'Seleccionar EPUB(s)',
+            windowsOptions: const WindowsOptions(lockParentWindow: true),
+            linuxOptions: const LinuxOptions(lockParentWindow: true),
+          );
+          final paths = files.map((f) => f.path).whereType<String>().toList();
+          if (paths.isNotEmpty) onLoad(EpubSource.files(paths));
+        },
       ),
+      secondary: (
+        icon: Icons.folder_open_outlined,
+        label: 'Abrir carpeta…',
+        onPressed: () async {
+          final path = await FilePicker.getDirectoryPath(
+            dialogTitle: 'Seleccionar carpeta con EPUBs',
+            windowsOptions: const WindowsOptions(lockParentWindow: true),
+            linuxOptions: const LinuxOptions(lockParentWindow: true),
+          );
+          if (path != null) onLoad(EpubSource.directory(path, recursive: recursive));
+        },
+      ),
+      recursive: recursive,
+      recursiveLabel: 'Incluir subcarpetas',
+      onRecursiveChanged: onRecursiveChanged,
     );
   }
 }

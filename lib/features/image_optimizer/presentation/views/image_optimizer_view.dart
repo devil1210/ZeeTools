@@ -1,4 +1,3 @@
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,6 +5,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '/inject_dependencies.dart';
 import '/common/epub/models/epub_manifest_item.dart';
 import '/common/epub/models/loaded_epub.dart';
+import '/common/widgets/confirm_dialog.dart';
+import '/common/widgets/empty_state_pane.dart';
+import '/common/widgets/file_drop_area.dart';
 import '/common/widgets/resizable_split_panel.dart';
 import '/common/widgets/speed_dial.dart';
 import '../../domain/image_format.dart';
@@ -41,7 +43,6 @@ class _ImageOptimizerContent extends StatefulWidget {
 
 class _ImageOptimizerContentState extends State<_ImageOptimizerContent> {
   final _fabNotifier = getIt<ValueNotifier<List<SpeedDialAction>>>();
-  bool _dragging = false;
   ImageOptimizerMessage? _lastMessage;
 
   @override
@@ -125,20 +126,15 @@ class _ImageOptimizerContentState extends State<_ImageOptimizerContent> {
     ),
   );
 
-  Future<bool> _confirmSwitch(ImageSessionKind from, ImageSessionKind to) async {
+  Future<bool> _confirmSwitch(ImageSessionKind from, ImageSessionKind to) {
     String name(ImageSessionKind k) => k == ImageSessionKind.epubs ? 'EPUBs' : 'imágenes sueltas';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Cambiar a ${name(to)}'),
-        content: Text('La sesión actual trabaja con ${name(from)}. Si continúas se cerrará y se perderán los cambios sin guardar.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Seguir con ${name(from)}')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Cambiar a ${name(to)}')),
-        ],
-      ),
+    return confirmAction(
+      context,
+      title: 'Cambiar a ${name(to)}',
+      message: 'La sesión actual trabaja con ${name(from)}. Si continúas se cerrará y se perderán los cambios sin guardar.',
+      confirmLabel: 'Cambiar a ${name(to)}',
+      cancelLabel: 'Seguir con ${name(from)}',
     );
-    return confirmed ?? false;
   }
 
   void _showSnackBar(String text, {bool isError = false}) {
@@ -152,7 +148,6 @@ class _ImageOptimizerContentState extends State<_ImageOptimizerContent> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return BlocConsumer<ImageOptimizerCubit, ImageOptimizerState>(
       listener: (context, state) {
         _updateFab(state);
@@ -167,45 +162,16 @@ class _ImageOptimizerContentState extends State<_ImageOptimizerContent> {
           title: const Text('Optimizador de Imágenes'),
           actions: [_AppBarActions(onSaveImagesInPlace: _saveImagesInPlace, onSaveImagesToFolder: _saveImagesToFolder)],
         ),
-        body: DropTarget(
-          onDragEntered: (_) => setState(() => _dragging = true),
-          onDragExited: (_) => setState(() => _dragging = false),
-          onDragDone: (details) {
-            setState(() => _dragging = false);
-            _handleIncoming(details.files.map((f) => f.path).toList());
-          },
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child:
-                    state.mapOrNull(
-                      idle: (_) => _IdlePane(onPickFiles: _pickFiles, onPickDirectory: () => _pickDirectory()),
-                      loading: (s) => _LoadingPane(message: s.message),
-                      failure: (s) => _FailurePane(message: s.message),
-                    ) ??
-                    const _ReadyPane(),
-              ),
-              if (_dragging)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Container(
-                      margin: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.08),
-                        border: Border.all(color: cs.primary, width: 2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Suelta aquí imágenes, EPUBs o carpetas',
-                          style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+        body: FileDropArea(
+          label: 'Suelta aquí imágenes, EPUBs o carpetas',
+          onDrop: _handleIncoming,
+          child:
+              state.mapOrNull(
+                idle: (_) => _IdlePane(onPickFiles: _pickFiles, onPickDirectory: () => _pickDirectory()),
+                loading: (s) => _LoadingPane(message: s.message),
+                failure: (s) => _FailurePane(message: s.message),
+              ) ??
+              const _ReadyPane(),
         ),
       ),
     );
@@ -213,18 +179,13 @@ class _ImageOptimizerContentState extends State<_ImageOptimizerContent> {
 
   Future<void> _saveImagesInPlace() async {
     final cubit = context.read<ImageOptimizerCubit>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reemplazar originales'),
-        content: Text('Se sobrescribirán ${cubit.state.mapOrNull(ready: (s) => s.jobs.values.where((j) => j is DoneJob && !j.committed).length) ?? 0} imágenes con su versión optimizada. Si cambia el formato, el original se elimina y queda el archivo con la nueva extensión.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reemplazar')),
-        ],
-      ),
+    final confirmed = await confirmAction(
+      context,
+      title: 'Reemplazar originales',
+      message: 'Se sobrescribirán ${cubit.state.mapOrNull(ready: (s) => s.jobs.values.where((j) => j is DoneJob && !j.committed).length) ?? 0} imágenes con su versión optimizada. Si cambia el formato, el original se elimina y queda el archivo con la nueva extensión.',
+      confirmLabel: 'Reemplazar',
     );
-    if (confirmed == true) await cubit.saveImagesInPlace();
+    if (confirmed) await cubit.saveImagesInPlace();
   }
 
   Future<void> _saveImagesToFolder() async {
@@ -405,58 +366,15 @@ class _IdlePaneState extends State<_IdlePane> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.photo_size_select_large_outlined, size: 64, color: cs.outline),
-            const SizedBox(height: 16),
-            const Text('Arrastra aquí imágenes, EPUBs o carpetas', textAlign: TextAlign.center),
-            const SizedBox(height: 4),
-            Text(
-              'JPEG, PNG, WebP, AVIF, JPEG XL, GIF estático, BMP y TIFF. Las animaciones se omiten.',
-              textAlign: TextAlign.center,
-              style: tt.bodySmall?.copyWith(color: cs.outline),
-            ),
-            const SizedBox(height: 24),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                FilledButton.icon(
-                  icon: const Icon(Icons.file_open_outlined),
-                  label: const Text('Abrir archivo(s)…'),
-                  onPressed: widget.onPickFiles,
-                ),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.folder_open_outlined),
-                  label: const Text('Abrir carpeta…'),
-                  onPressed: widget.onPickDirectory,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Switch(value: _recursive, onChanged: _setRecursive),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: GestureDetector(
-                    onTap: () => _setRecursive(!_recursive),
-                    child: Text('Incluir subcarpetas al abrir o arrastrar carpetas', style: tt.bodySmall),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    return EmptyStatePane(
+      icon: Icons.photo_size_select_large_outlined,
+      title: 'Arrastra aquí imágenes, EPUBs o carpetas',
+      subtitle: 'JPEG, PNG, WebP, AVIF, JPEG XL, GIF estático, BMP y TIFF. Las animaciones se omiten.',
+      primary: (icon: Icons.file_open_outlined, label: 'Abrir archivo(s)…', onPressed: widget.onPickFiles),
+      secondary: (icon: Icons.folder_open_outlined, label: 'Abrir carpeta…', onPressed: widget.onPickDirectory),
+      recursive: _recursive,
+      recursiveLabel: 'Incluir subcarpetas',
+      onRecursiveChanged: _setRecursive,
     );
   }
 }

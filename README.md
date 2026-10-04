@@ -145,7 +145,8 @@ lib/
 │   ├── file/                           # Wrappers para file_picker o manipulación de I/O
 │   ├── process/                        # Wrappers para ejecutar binarios (Pandoc, 7zip, codificadores de imagen)
 │   ├── theme/                          # Temas, tipografías y colores
-│   └── utils/                          # Utilidades (conversores, debounce, helpers)
+│   ├── utils/                          # Utilidades (conversores, debounce, helpers)
+│   └── widgets/                        # Componentes de interfaz compartidos (campos, pills, tarjetas, zonas de arrastre)
 │
 ├── features/                           # Módulos funcionales del sistema
 │   │

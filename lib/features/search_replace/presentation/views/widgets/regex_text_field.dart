@@ -85,30 +85,8 @@ class _RegexTextFieldState extends State<RegexTextField> {
           hintText: widget.hintText,
           hintMaxLines: 1,
           errorText: widget.errorText,
-          isDense: true,
-          filled: true,
-          fillColor: isRegex ? cs.primaryContainer.withAlpha(40) : cs.surfaceContainerHighest,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(
-              color: isRegex ? cs.primary.withAlpha(160) : cs.outlineVariant,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(
-              color: isRegex ? cs.primary : cs.primary,
-              width: 2,
-            ),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: cs.error),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: cs.error, width: 2),
-          ),
+          // El tinte distingue el modo regex; borde, altura y resaltado vienen del tema.
+          fillColor: isRegex ? cs.primaryContainer.withAlpha(40) : null,
           suffixIcon: widget.suffixIcons.isEmpty
               ? null
               : Padding(

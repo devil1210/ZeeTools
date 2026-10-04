@@ -38,10 +38,12 @@ class _ToggleFieldState extends State<ToggleField> {
           ),
           child: Row(
             children: [
-              Expanded(child: Text(widget.label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+              Expanded(child: Text(widget.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyLarge)),
               SizedBox(
                 height: AppSize.medium - 2,
-                child: FittedBox(child: Switch(value: widget.value, onChanged: widget.onChanged)),
+                child: FittedBox(
+                  child: Switch(value: widget.value, onChanged: widget.onChanged),
+                ),
               ),
             ],
           ),

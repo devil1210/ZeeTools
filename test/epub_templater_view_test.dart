@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zeetools/common/process/native_tools_repo.dart';
 import 'package:zeetools/common/utils/either.dart';
-import 'package:zeetools/common/widgets/choice_pill.dart';
+import 'package:zeetools/common/widgets/selection_pill.dart';
 import 'package:zeetools/common/widgets/speed_dial.dart';
 import 'package:zeetools/features/epub_templater/data/epub_templater_repo.dart';
 import 'package:zeetools/features/epub_templater/data/system_fonts.dart';
@@ -129,12 +129,12 @@ void main() {
     await pumpView(tester, size: const Size(1280, 3000));
     await tester.tap(find.text('Metadatos'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ChoicePill, 'Drama'));
-    await tester.tap(find.widgetWithText(ChoicePill, 'Acción'));
+    await tester.tap(find.widgetWithText(SelectionPill, 'Drama'));
+    await tester.tap(find.widgetWithText(SelectionPill, 'Acción'));
     await tester.pumpAndSettle();
     expect(cubit.state.project.metadata.genres, ['Drama', 'Acción']);
-    await tester.tap(find.widgetWithText(ChoicePill, 'Drama'));
-    await tester.tap(find.widgetWithText(ChoicePill, 'Chicas/Shoujo'));
+    await tester.tap(find.widgetWithText(SelectionPill, 'Drama'));
+    await tester.tap(find.widgetWithText(SelectionPill, 'Chicas/Shoujo'));
     await tester.pumpAndSettle();
     expect(cubit.state.project.metadata.genres, ['Acción']);
     expect(cubit.state.project.metadata.subjects, ['Juvenil', 'Chicas/Shoujo', 'Acción']);
@@ -220,7 +220,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Times New Roman'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(ChoicePill, 'h2'));
+    await tester.tap(find.widgetWithText(SelectionPill, 'h2'));
     await tester.pumpAndSettle();
     expect(cubit.state.project.fonts.single.headingLevels, [1, 2]);
 

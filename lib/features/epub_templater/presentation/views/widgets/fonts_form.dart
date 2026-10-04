@@ -4,12 +4,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
 
 import '/common/theme/app_dimensions.dart';
+import '/common/widgets/selection_pill.dart';
 import '/common/widgets/file_drop_button.dart';
-import '/common/widgets/choice_pill.dart';
+import '/common/widgets/form_section.dart';
+import '/common/widgets/responsive_row.dart';
+import '/common/widgets/outlined_dropdown.dart';
 import '../../../data/system_fonts.dart';
 import '../../../domain/embedded_font.dart';
 import '../../cubit/epub_templater_cubit.dart';
-import 'form_fields.dart';
 
 class FontsForm extends StatelessWidget {
   const FontsForm({super.key});
@@ -39,7 +41,10 @@ class FontsForm extends StatelessWidget {
               builder: (_) => _SystemFontPicker(fonts: cubit.systemFonts()),
             );
             if (family != null) {
-              cubit.updateFonts([...fonts, EmbeddedFont(family: family, headingLevels: const [1])]);
+              cubit.updateFonts([
+                ...fonts,
+                EmbeddedFont(family: family, headingLevels: const [1]),
+              ]);
             }
           },
         ),
@@ -114,10 +119,10 @@ class _FontCard extends StatelessWidget {
           runSpacing: AppSpacing.small,
           children: [
             for (var level = 1; level <= 9; level++)
-              ChoicePill(
-                label: 'h$level',
+              SelectionPill(
                 selected: font.headingLevels.contains(level),
                 onTap: () => onChanged(font.copyWith(headingLevels: font.headingLevels.contains(level) ? ([...font.headingLevels]..remove(level)) : [...font.headingLevels, level])),
+                child: Text('h$level'),
               ),
           ],
         ),

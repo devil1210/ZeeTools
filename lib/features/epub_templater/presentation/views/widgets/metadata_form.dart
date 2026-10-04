@@ -3,13 +3,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '/common/theme/app_dimensions.dart';
-import '/common/widgets/choice_pill.dart';
+import '/common/widgets/tag_pill.dart';
+import '/common/widgets/selection_pill.dart';
+import '/common/widgets/app_text_field.dart';
+import '/common/widgets/form_section.dart';
+import '/common/widgets/responsive_row.dart';
+import '/common/widgets/outlined_dropdown.dart';
+import '/common/widgets/editable_list.dart';
+import '/common/utils/input_formatters.dart';
 import '../../../data/epub_template_builder.dart';
 import '../../../domain/book_metadata.dart';
 import '../../../domain/marc_relator.dart';
 import '../../../domain/subjects.dart';
 import '../../cubit/epub_templater_cubit.dart';
-import 'editable_list.dart';
 import 'form_fields.dart';
 
 class MetadataForm extends StatelessWidget {
@@ -35,7 +41,7 @@ class MetadataForm extends StatelessWidget {
                   value: m.titleLang.isEmpty ? m.language : m.titleLang,
                   onChanged: (v) => update((m) => m.copyWith(titleLang: v.trim())),
                 ),
-                TemplateTextField(
+                AppTextField(
                   label: 'Título principal',
                   value: m.title,
                   hint: 'Nombre de la novela - Volumen 01 [SIGLAS]',
@@ -44,7 +50,10 @@ class MetadataForm extends StatelessWidget {
                 ),
               ],
             ),
-            _TitleSortField(value: m.titleSort, onChanged: (v) => update((m) => m.copyWith(titleSort: v))),
+            _TitleSortField(
+              value: m.titleSort,
+              onChanged: (v) => update((m) => m.copyWith(titleSort: v)),
+            ),
             _LocalizedTexts(
               items: m.altTitles,
               taken: m.titleLang.isEmpty ? m.language : m.titleLang,
@@ -61,12 +70,12 @@ class MetadataForm extends StatelessWidget {
                   enabled: m.hasSeries,
                   onChanged: (v) => update((m) => m.copyWith(seriesLang: v.trim())),
                 ),
-                TemplateTextField(
+                AppTextField(
                   label: 'Serie',
                   value: m.series,
                   onChanged: (v) => update((m) => m.copyWith(series: v)),
                 ),
-                TemplateTextField(
+                AppTextField(
                   label: 'Volumen',
                   value: m.seriesIndex,
                   enabled: m.hasSeries,
@@ -131,7 +140,7 @@ class MetadataForm extends StatelessWidget {
               onChanged: (v) => update((m) => m.copyWith(publishers: v)),
               itemBuilder: (context, publisher, onChanged, controls) => EditableRow(
                 controls: controls,
-                child: TemplateTextField(label: 'Nombre', value: publisher, onChanged: onChanged),
+                child: AppTextField(label: 'Nombre', value: publisher, onChanged: onChanged),
               ),
             ),
             Text('Enlaces en la página de título', style: Theme.of(context).textTheme.labelLarge),
@@ -145,13 +154,13 @@ class MetadataForm extends StatelessWidget {
                 child: ResponsiveRow(
                   flex: const [1, 2],
                   children: [
-                    TemplateTextField(
+                    AppTextField(
                       label: 'Etiqueta',
                       value: link.label,
                       hint: 'Página Web',
                       onChanged: (v) => onChanged(link.copyWith(label: v)),
                     ),
-                    TemplateTextField(
+                    AppTextField(
                       label: 'URL',
                       value: link.url,
                       onChanged: (v) => onChanged(link.copyWith(url: v.trim())),
@@ -160,7 +169,7 @@ class MetadataForm extends StatelessWidget {
                 ),
               ),
             ),
-            TemplateTextField(
+            AppTextField(
               label: 'Sinopsis',
               value: m.description,
               maxLines: 12,
@@ -177,11 +186,11 @@ class MetadataForm extends StatelessWidget {
               runSpacing: AppSpacing.small,
               children: [
                 for (final d in Demographic.values)
-                  ChoicePill(
-                    label: d.label,
+                  SelectionPill(
                     tooltip: 'Añade también «${d.ageGroup}»',
                     selected: m.demographic == d,
                     onTap: () => update((m) => m.copyWith(demographic: m.demographic == d ? null : d)),
+                    child: Text(d.label),
                   ),
               ],
             ),
@@ -191,10 +200,10 @@ class MetadataForm extends StatelessWidget {
               runSpacing: AppSpacing.small,
               children: [
                 for (final genre in literaryGenres)
-                  ChoicePill(
-                    label: genre,
+                  SelectionPill(
                     selected: m.genres.contains(genre),
                     onTap: () => update((m) => m.copyWith(genres: m.genres.contains(genre) ? ([...m.genres]..remove(genre)) : [...m.genres, genre])),
+                    child: Text(genre),
                   ),
               ],
             ),
@@ -234,26 +243,26 @@ class MetadataForm extends StatelessWidget {
             ),
             ResponsiveRow(
               children: [
-                TemplateTextField(
+                AppTextField(
                   label: 'ISBN-13',
                   value: m.isbn13,
                   error: m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13) ? 'ISBN-13 no válido' : null,
                   onChanged: (v) => update((m) => m.copyWith(isbn13: v)),
                 ),
-                TemplateTextField(
+                AppTextField(
                   label: 'ISBN-10',
                   value: m.isbn10,
                   error: m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10) ? 'ISBN-10 no válido' : null,
                   onChanged: (v) => update((m) => m.copyWith(isbn10: v)),
                 ),
-                TemplateTextField(
+                AppTextField(
                   label: 'ASIN de Amazon',
                   value: m.asin,
                   onChanged: (v) => update((m) => m.copyWith(asin: v.trim())),
                 ),
               ],
             ),
-            TemplateTextField(
+            AppTextField(
               label: 'Enlace de la publicación',
               value: m.sourceUrl,
               hint: 'https://grupotraductor.com/nombre-novela',
@@ -300,7 +309,11 @@ class _LocalizedTexts extends StatelessWidget {
               error: key(t.lang).isNotEmpty && counts[key(t.lang)]! > 1 ? 'Idioma repetido' : null,
               onChanged: (v) => update(t.copyWith(lang: v.trim())),
             ),
-            TemplateTextField(label: textLabel, value: t.text, onChanged: (v) => update(t.copyWith(text: v))),
+            AppTextField(
+              label: textLabel,
+              value: t.text,
+              onChanged: (v) => update(t.copyWith(text: v)),
+            ),
           ],
         ),
       ),
@@ -334,7 +347,7 @@ class _TitleSortFieldState extends State<_TitleSortField> {
         ),
       );
     }
-    return TemplateTextField(
+    return AppTextField(
       label: 'Título para ordenar',
       value: widget.value,
       onChanged: widget.onChanged,
@@ -397,7 +410,7 @@ class _ActorEditorState extends State<_ActorEditor> {
                 Expanded(
                   child: ResponsiveRow(
                     children: [
-                      TemplateTextField(label: 'Nombre', value: actor.name, onChanged: _onNameChanged),
+                      AppTextField(label: 'Nombre', value: actor.name, onChanged: _onNameChanged),
                       if (actor.name.trim().isNotEmpty)
                         TextField(
                           controller: _fileAs,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '/common/theme/app_dimensions.dart';
+import '../theme/app_dimensions.dart';
 
 // Lista de elementos con añadir, quitar y mover. Cada elemento recibe sus
 // controles para colocarlos donde no resten espacio a los campos. Los campos

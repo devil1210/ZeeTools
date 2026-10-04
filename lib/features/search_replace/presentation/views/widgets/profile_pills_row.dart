@@ -148,7 +148,7 @@ class _DraggablePill extends StatelessWidget {
       elevation: 6,
       shadowColor: cs.shadow,
       child: DecoratedBox(
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(999), border: Border.all(color: cs.primary, width: 1.5)),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppRadius.small), border: Border.all(color: cs.primary, width: 1.5)),
         child: child,
       ),
     );

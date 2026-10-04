@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -66,6 +67,17 @@ class SearchReplaceCubit extends Cubit<SearchReplaceState> {
         preserveCase: _settingsRepo.getPreserveCase(),
       ),
     );
+  }
+
+  // EPUBs sueltos o carpetas que los contienen: abren la sesión o se añaden a la abierta.
+  Future<void> openPaths(List<String> paths, {required bool recursive}) async {
+    final epubs = [
+      for (final path in paths)
+        if (FileSystemEntity.isDirectorySync(path)) ..._epubRepo.discoverEpubs(path, recursive: recursive).getOrElse((_) => []) else if (path.toLowerCase().endsWith('.epub')) path,
+    ];
+    if (epubs.isEmpty) return;
+    final source = EpubSource.files(epubs);
+    return _ready == null ? loadSources(source) : addSources(source);
   }
 
   Future<void> addSources(EpubSource source) async {
