@@ -119,19 +119,39 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Checkout tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
 
+      # Las líneas del tag que no son viñetas pasan a ser títulos de sección.
+      - name: Write release notes
+        run: |
+          VERSION="${TAG#v}"
+          git tag -l --format='%(contents:body)' "$TAG" | awk 'NF == 0 { next } /^- / { print; next } { print (NR > 1 ? "\n" : "") "## " $0 "\n" }' > notes.md
+          cat >> notes.md <<EOF
+
+          ## Instalación
+
+          - **Windows x64:** descomprime \`ZeeTools-$VERSION-windows-x64.zip\` y ejecuta \`zeetools.exe\`. La primera vez que se optimizan imágenes se descargan sus herramientas (~110 MB).
+          - **Linux x64:** descomprime \`ZeeTools-$VERSION-linux-x64.zip\` y ejecuta \`./zeetools\`. Necesita GTK 3 y \`zenity\` para el selector de archivos.
+          - **macOS:** descomprime \`ZeeTools-$VERSION-macos.zip\` y abre \`ZeeTools.app\`. No está firmada: la primera vez ábrela con clic derecho → Abrir, o ejecuta \`xattr -dr com.apple.quarantine ZeeTools.app\`.
+
+          En Linux y macOS el optimizador de imágenes usa las herramientas instaladas en el sistema (libjxl, libwebp, libavif, oxipng y mozjpeg) que encuentre en el \`PATH\`.
+          EOF
+
       # Si la release ya existe solo reemplaza los archivos, para no perder sus notas.
       - name: Create or update release
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
         run: |
           if ! gh release view "$TAG" > /dev/null 2>&1; then
-            gh release create "$TAG" --draft --verify-tag --title "ZeeTools ${TAG#v}" --notes-from-tag
+            gh release create "$TAG" --draft --verify-tag --title "ZeeTools ${TAG#v}" --notes-file notes.md
           fi
           gh release upload "$TAG" dist/* --clobber
