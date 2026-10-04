@@ -79,7 +79,7 @@ jobs:
         if: matrix.target == 'macos'
         run: |
           for f in macos/Runner/DebugProfile.entitlements macos/Runner/Release.entitlements; do
-            plutil -replace com.apple.security.app-sandbox -bool false "$f"
+            /usr/libexec/PlistBuddy -c "Set :com.apple.security.app-sandbox false" "$f"
           done
 
       - name: Install dependencies
