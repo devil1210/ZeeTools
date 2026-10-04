@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -73,6 +74,9 @@ class _MyAppState extends State<MyApp> with WindowListener {
         builder: (_, state) => MaterialApp.router(
           title: 'ZeeTools',
           debugShowCheckedModeBanner: false,
+          locale: const Locale('es'),
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          supportedLocales: const [Locale('es')],
           themeMode: state.preferences.themeMode,
           theme: buildAppTheme(
             ColorScheme.fromSeed(seedColor: appSeedColor, brightness: Brightness.light),
