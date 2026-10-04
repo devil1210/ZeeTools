@@ -143,7 +143,12 @@ class _EpubTemplaterContentState extends State<_EpubTemplaterContent> {
                 child: TabBarView(
                   children: [
                     const ResizableSplitPanel(initialWidth: 300, maxWidth: 520, panel: SectionsPanel(), body: SectionEditor()),
-                    MetadataForm(key: ValueKey(context.select((EpubTemplaterCubit c) => c.state.revision))),
+                    MetadataForm(
+                      key: ValueKey(context.select((EpubTemplaterCubit c) => c.state.revision)),
+                      metadata: context.select((EpubTemplaterCubit c) => c.state.project.metadata),
+                      onChanged: context.read<EpubTemplaterCubit>().updateMetadata,
+                      onRegenerateIdentifier: context.read<EpubTemplaterCubit>().regenerateIdentifier,
+                    ),
                     const ImagesForm(),
                     const FontsForm(),
                   ],

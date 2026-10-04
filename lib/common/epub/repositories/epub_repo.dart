@@ -31,6 +31,7 @@ abstract interface class EpubRepository {
   void unloadEpub(String epubPath);
   List<String> get loadedPaths;
   bool isLoaded(String epubPath);
+  String? opfPath(String epubPath);
 }
 
 class EpubRepositoryImpl implements EpubRepository {
@@ -48,6 +49,9 @@ class EpubRepositoryImpl implements EpubRepository {
 
   @override
   bool isLoaded(String epubPath) => _archives.containsKey(epubPath);
+
+  @override
+  String? opfPath(String epubPath) => _opfPaths[epubPath];
 
   @override
   Future<Either<EpubFailure, List<EpubManifestItem>>> loadEpub(String filePath, {bool Function(String mediaType) include = EpubMediaTypes.isTextType}) async {

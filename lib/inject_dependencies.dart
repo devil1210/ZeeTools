@@ -15,6 +15,8 @@ import 'features/image_optimizer/data/image_optimizer_engine.dart';
 import 'features/image_optimizer/data/image_optimizer_repo.dart';
 import 'features/image_optimizer/data/image_optimizer_settings_repo.dart';
 import 'features/image_optimizer/presentation/cubit/image_optimizer_cubit.dart';
+import 'features/metadata_editor/data/epub_metadata_repo.dart';
+import 'features/metadata_editor/presentation/cubit/metadata_editor_cubit.dart';
 import 'features/search_replace/data/search_replace_repo.dart';
 import 'features/search_replace/data/search_replace_settings_repo.dart';
 import 'features/search_replace/presentation/cubit/search_replace_cubit.dart';
@@ -41,12 +43,14 @@ Future<void> injectDependencies() async {
   getIt.registerLazySingleton<ImageOptimizerRepository>(() => ImageOptimizerRepositoryImpl(EpubRepositoryImpl(), getIt(), ImageOptimizerEngine()));
   getIt.registerLazySingleton<EpubTemplaterRepository>(() => EpubTemplaterRepositoryImpl());
   getIt.registerLazySingleton<TemplateProfilesRepository>(() => TemplateProfilesRepositoryImpl(getIt()));
+  getIt.registerLazySingleton<EpubMetadataRepository>(() => EpubMetadataRepositoryImpl(EpubRepositoryImpl()));
 
   // Cubits
   getIt.registerFactory<SearchReplaceCubit>(() => SearchReplaceCubit(getIt(), getIt(), getIt()));
   getIt.registerFactory<SettingsCubit>(() => SettingsCubit(getIt()));
   getIt.registerFactory<ImageOptimizerCubit>(() => ImageOptimizerCubit(getIt(), getIt()));
   getIt.registerFactory<EpubTemplaterCubit>(() => EpubTemplaterCubit(getIt(), getIt(), getIt(), getIt()));
+  getIt.registerFactory<MetadataEditorCubit>(() => MetadataEditorCubit(getIt()));
 
   getIt.registerLazySingleton<ValueNotifier<List<SpeedDialAction>>>(() => ValueNotifier<List<SpeedDialAction>>([]));
 }

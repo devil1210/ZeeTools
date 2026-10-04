@@ -3,13 +3,13 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
-import '/common/utils/uuid_v7.dart';
 import '../domain/book_metadata.dart';
 import '../domain/embedded_font.dart';
 import '../domain/marc_relator.dart';
 import '../domain/section_kind.dart';
 import '../domain/template_project.dart';
 import '../domain/template_section.dart';
+import 'opf_metadata.dart';
 import 'system_fonts.dart';
 
 typedef EpubEntry = ({String path, Uint8List bytes});
@@ -291,103 +291,14 @@ class EpubTemplateBuilder {
   }
 
   void _writeMetadata(StringBuffer b) {
-    final m = _meta;
-    void meta(String property, String value, {String? refines, String? scheme, String? lang, String? id}) {
-      final attrs = [
-        if (id != null) 'id="$id"',
-        if (refines != null) 'refines="#$refines"',
-        'property="$property"',
-        if (scheme != null) 'scheme="$scheme"',
-        if (lang != null) 'xml:lang="${_esc(lang)}"',
-      ].join(' ');
-      b.writeln('    <meta $attrs>${_esc(value)}</meta>');
-    }
-
-    // alternate-script no puede compartir idioma con la propiedad que refina.
-    void alternates(String refines, String ownLang, List<LocalizedText> texts) {
-      for (final t in texts) {
-        final lang = t.lang.trim();
-        if (lang.isEmpty || t.text.trim().isEmpty || lang.toLowerCase() == ownLang.toLowerCase()) continue;
-        meta('alternate-script', t.text.trim(), refines: refines, lang: lang);
-      }
-    }
-
-    String langAttr(String lang) => lang.isEmpty || lang == _lang ? '' : ' xml:lang="${_esc(lang)}"';
-
-    final identifier = m.identifier.trim().isEmpty ? uuidV7(now) : m.identifier.trim();
-    b.writeln('    <dc:identifier id="BookId">urn:uuid:${_esc(identifier)}</dc:identifier>');
-
-    final titleLang = m.titleLang.trim();
-    b.writeln('    <dc:title id="title"${langAttr(titleLang)}>${_esc(m.title.trim())}</dc:title>');
-    meta('title-type', 'main', refines: 'title');
-    if (m.titleSort.trim().isNotEmpty) meta('file-as', m.titleSort.trim(), refines: 'title');
-    alternates('title', titleLang.isEmpty ? _lang : titleLang, m.altTitles);
-
-    b.writeln('    <dc:language>${_esc(_lang)}</dc:language>');
-    if (m.date.trim().isNotEmpty) b.writeln('    <dc:date>${_esc(m.date.trim())}</dc:date>');
-
-    final people = m.actors.where((a) => a.name.trim().isNotEmpty && a.roles.isNotEmpty);
-    for (final (creator, element, prefix) in const [(true, 'dc:creator', 'creator'), (false, 'dc:contributor', 'contrib')]) {
-      for (final (i, actor) in people.where((a) => a.isCreator == creator).indexed) {
-        final id = '$prefix${(i + 1).toString().padLeft(2, '0')}';
-        b.writeln('    <$element id="$id">${_esc(actor.name.trim())}</$element>');
-        for (final role in actor.roles) {
-          meta('role', role.name, refines: id, scheme: 'marc:relators');
-        }
-        if (actor.fileAs.trim().isNotEmpty) meta('file-as', actor.fileAs.trim(), refines: id);
-        alternates(id, _lang, actor.altNames);
-      }
-    }
-
-    if (m.bookType.trim().isNotEmpty) b.writeln('    <dc:type>${_esc(m.bookType.trim())}</dc:type>');
-    for (final subject in m.subjects) {
-      b.writeln('    <dc:subject>${_esc(subject)}</dc:subject>');
-    }
-    if (m.description.trim().isNotEmpty) b.writeln('    <dc:description>${_esc(m.description.trim())}</dc:description>');
-    for (final (i, publisher) in m.publishers.where((x) => x.trim().isNotEmpty).indexed) {
-      b.writeln('    <dc:publisher id="publisher${(i + 1).toString().padLeft(2, '0')}">${_esc(publisher.trim())}</dc:publisher>');
-    }
-
-    // ONIX code list 5: 15 = ISBN-13, 02 = ISBN-10.
-    if (m.isbn13.trim().isNotEmpty) {
-      b.writeln('    <dc:identifier id="isbn13">urn:isbn:${_esc(m.isbn13.trim())}</dc:identifier>');
-      meta('identifier-type', '15', refines: 'isbn13', scheme: 'onix:codelist5');
-    }
-    if (m.isbn10.trim().isNotEmpty) {
-      b.writeln('    <dc:identifier id="isbn10">urn:isbn:${_esc(m.isbn10.trim())}</dc:identifier>');
-      meta('identifier-type', '02', refines: 'isbn10', scheme: 'onix:codelist5');
-    }
-    if (m.asin.trim().isNotEmpty) {
-      b.writeln('    <dc:identifier id="amazon-id">urn:amazon:${_esc(m.asin.trim())}</dc:identifier>');
-      meta('identifier-type', 'amazon', refines: 'amazon-id');
-    }
-    if (m.sourceUrl.trim().isNotEmpty) {
-      b.writeln('    <dc:identifier id="uri-id">${_esc(m.sourceUrl.trim())}</dc:identifier>');
-      meta('identifier-type', 'uri', refines: 'uri-id');
-    }
-
-    if (m.hasSeries) {
-      final seriesLang = m.seriesLang.trim();
-      final index = m.seriesIndex.trim().isEmpty ? '1' : m.seriesIndex.trim();
-      b.writeln('    <meta id="serie" property="belongs-to-collection"${langAttr(seriesLang)}>${_esc(m.series.trim())}</meta>');
-      meta('collection-type', 'series', refines: 'serie');
-      meta('group-position', index, refines: 'serie');
-      alternates('serie', seriesLang.isEmpty ? _lang : seriesLang, m.altSeries);
-      // Metadatos OPF 2 que leen calibre y lectores sin soporte de colecciones EPUB 3.
-      b
-        ..writeln('    <meta name="calibre:series" content="${_esc(m.series.trim())}"/>')
-        ..writeln('    <meta name="calibre:series_index" content="${_esc(index)}"/>');
-    }
-    if (m.rating != null) b.writeln('    <meta name="calibre:rating" content="${m.rating}"/>');
-
+    writeOpfMetadata(b, _meta, now: now);
+    void meta(String property, String value) => b.writeln('    <meta property="$property">$value</meta>');
     meta('schema:accessMode', 'textual');
     if (_hasImages) meta('schema:accessMode', 'visual');
     for (final feature in const ['structuralNavigation', 'tableOfContents', 'readingOrder']) {
       meta('schema:accessibilityFeature', feature);
     }
     meta('schema:accessibilityHazard', 'none');
-
-    meta('dcterms:modified', '${now.toIso8601String().substring(0, 19)}Z');
     if (_coverImage case final cover?) b.writeln('    <meta name="cover" content="${_manifestId(cover)}"/>');
   }
 
@@ -700,7 +611,7 @@ const _guideCssComments = [
 
 String _withoutGuideComments(String css) => css.split('\n').where((line) => !_guideCssComments.contains(line.trim())).join('\n');
 
-String _esc(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+const _esc = xmlEscape;
 
 const _containerXml = '''<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">

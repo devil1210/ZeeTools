@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '/common/theme/app_dimensions.dart';
 import '/common/widgets/tag_pill.dart';
@@ -14,18 +13,31 @@ import '/common/utils/input_formatters.dart';
 import '../../../data/epub_template_builder.dart';
 import '../../../domain/book_metadata.dart';
 import '../../../domain/marc_relator.dart';
+import '../../../domain/metadata_field.dart';
 import '../../../domain/subjects.dart';
-import '../../cubit/epub_templater_cubit.dart';
 import 'form_fields.dart';
 
+const mixedValuesHint = 'Varios valores';
+
+// [mixed]: campos que difieren entre los libros editados; se muestran vacíos y
+// solo se aplican a todos si se les da un valor.
 class MetadataForm extends StatelessWidget {
-  const MetadataForm({super.key});
+  const MetadataForm({super.key, required this.metadata, required this.onChanged, this.mixed = const {}, this.onRegenerateIdentifier, this.showLinks = true});
+
+  final BookMetadata metadata;
+  final ValueChanged<BookMetadata Function(BookMetadata m)> onChanged;
+  final Set<MetadataField> mixed;
+  final VoidCallback? onRegenerateIdentifier;
+  final bool showLinks;
+
+  String? _hint(MetadataField field, [String? hint]) => mixed.contains(field) ? mixedValuesHint : hint;
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<EpubTemplaterCubit>();
-    final m = context.select((EpubTemplaterCubit c) => c.state.project.metadata);
-    void update(BookMetadata Function(BookMetadata m) f) => cubit.updateMetadata(f);
+    final m = metadata;
+    final update = onChanged;
+    final hasSeries = m.hasSeries || mixed.contains(MetadataField.series);
+    Widget label(String text, MetadataField field) => Text(mixed.contains(field) ? '$text · $mixedValuesHint' : text, style: Theme.of(context).textTheme.labelLarge);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppPadding.large, AppPadding.large, AppPadding.large, 96),
@@ -39,21 +51,24 @@ class MetadataForm extends StatelessWidget {
                 LanguageField(
                   label: 'Idioma',
                   value: m.titleLang.isEmpty ? m.language : m.titleLang,
+                  hint: _hint(MetadataField.titleLang),
                   onChanged: (v) => update((m) => m.copyWith(titleLang: v.trim())),
                 ),
                 AppTextField(
                   label: 'Título principal',
                   value: m.title,
-                  hint: 'Nombre de la novela - Volumen 01 [SIGLAS]',
-                  error: m.title.trim().isEmpty ? 'Obligatorio' : null,
+                  hint: _hint(MetadataField.title, 'Nombre de la novela - Volumen 01 [SIGLAS]'),
+                  error: m.title.trim().isEmpty && !mixed.contains(MetadataField.title) ? 'Obligatorio' : null,
                   onChanged: (v) => update((m) => m.copyWith(title: v)),
                 ),
               ],
             ),
             _TitleSortField(
               value: m.titleSort,
+              hint: _hint(MetadataField.titleSort),
               onChanged: (v) => update((m) => m.copyWith(titleSort: v)),
             ),
+            if (mixed.contains(MetadataField.altTitles)) label('Títulos en otros idiomas', MetadataField.altTitles),
             _LocalizedTexts(
               items: m.altTitles,
               taken: m.titleLang.isEmpty ? m.language : m.titleLang,
@@ -67,21 +82,25 @@ class MetadataForm extends StatelessWidget {
                 LanguageField(
                   label: 'Idioma',
                   value: m.seriesLang.isEmpty ? m.language : m.seriesLang,
-                  enabled: m.hasSeries,
+                  hint: _hint(MetadataField.seriesLang),
+                  enabled: hasSeries,
                   onChanged: (v) => update((m) => m.copyWith(seriesLang: v.trim())),
                 ),
                 AppTextField(
                   label: 'Serie',
                   value: m.series,
+                  hint: _hint(MetadataField.series),
                   onChanged: (v) => update((m) => m.copyWith(series: v)),
                 ),
                 AppTextField(
                   label: 'Volumen',
                   value: m.seriesIndex,
-                  enabled: m.hasSeries,
+                  hint: _hint(MetadataField.seriesIndex),
+                  enabled: hasSeries,
                   inputFormatters: [decimalNumberFormatter],
                   error: switch (m.seriesIndex.trim()) {
-                    _ when !m.hasSeries => null,
+                    _ when !hasSeries => null,
+                    '' when mixed.contains(MetadataField.seriesIndex) => null,
                     '' => 'Obligatorio',
                     final index when double.tryParse(index) == null => 'No es un número',
                     _ => null,
@@ -90,7 +109,8 @@ class MetadataForm extends StatelessWidget {
                 ),
               ],
             ),
-            if (m.hasSeries)
+            if (hasSeries && mixed.contains(MetadataField.altSeries)) label('Series en otros idiomas', MetadataField.altSeries),
+            if (hasSeries)
               _LocalizedTexts(
                 items: m.altSeries,
                 taken: m.seriesLang.isEmpty ? m.language : m.seriesLang,
@@ -103,6 +123,7 @@ class MetadataForm extends StatelessWidget {
         FormSection(
           title: 'Personas',
           children: [
+            if (mixed.contains(MetadataField.actors)) label('Las personas que añadas sustituyen a las de cada libro', MetadataField.actors),
             EditableList<Actor>(
               items: m.actors,
               addLabel: 'Añadir persona',
@@ -120,19 +141,22 @@ class MetadataForm extends StatelessWidget {
                 LanguageField(
                   label: 'Idioma del libro',
                   value: m.language,
+                  hint: _hint(MetadataField.language),
                   onChanged: (v) => update((m) => m.copyWith(language: v.trim())),
                 ),
                 _BookTypeField(
                   value: m.bookType,
+                  hint: _hint(MetadataField.bookType),
                   onChanged: (v) => update((m) => m.copyWith(bookType: v)),
                 ),
                 _DateField(
                   value: m.date,
+                  hint: _hint(MetadataField.date),
                   onChanged: (v) => update((m) => m.copyWith(date: v)),
                 ),
               ],
             ),
-            Text('Editorial o grupo', style: Theme.of(context).textTheme.labelLarge),
+            label('Editorial o grupo', MetadataField.publishers),
             EditableList<String>(
               items: m.publishers,
               addLabel: 'Añadir editorial',
@@ -143,35 +167,38 @@ class MetadataForm extends StatelessWidget {
                 child: AppTextField(label: 'Nombre', value: publisher, onChanged: onChanged),
               ),
             ),
-            Text('Enlaces en la página de título', style: Theme.of(context).textTheme.labelLarge),
-            EditableList<WebLink>(
-              items: m.links,
-              addLabel: 'Añadir enlace',
-              createItem: () => const WebLink(),
-              onChanged: (v) => update((m) => m.copyWith(links: v)),
-              itemBuilder: (context, link, onChanged, controls) => EditableRow(
-                controls: controls,
-                child: ResponsiveRow(
-                  flex: const [1, 2],
-                  children: [
-                    AppTextField(
-                      label: 'Etiqueta',
-                      value: link.label,
-                      hint: 'Página Web',
-                      onChanged: (v) => onChanged(link.copyWith(label: v)),
-                    ),
-                    AppTextField(
-                      label: 'URL',
-                      value: link.url,
-                      onChanged: (v) => onChanged(link.copyWith(url: v.trim())),
-                    ),
-                  ],
+            if (showLinks) ...[
+              label('Enlaces en la página de título', MetadataField.links),
+              EditableList<WebLink>(
+                items: m.links,
+                addLabel: 'Añadir enlace',
+                createItem: () => const WebLink(),
+                onChanged: (v) => update((m) => m.copyWith(links: v)),
+                itemBuilder: (context, link, onChanged, controls) => EditableRow(
+                  controls: controls,
+                  child: ResponsiveRow(
+                    flex: const [1, 2],
+                    children: [
+                      AppTextField(
+                        label: 'Etiqueta',
+                        value: link.label,
+                        hint: 'Página Web',
+                        onChanged: (v) => onChanged(link.copyWith(label: v)),
+                      ),
+                      AppTextField(
+                        label: 'URL',
+                        value: link.url,
+                        onChanged: (v) => onChanged(link.copyWith(url: v.trim())),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+            ],
             AppTextField(
               label: 'Sinopsis',
               value: m.description,
+              hint: _hint(MetadataField.description),
               maxLines: 12,
               onChanged: (v) => update((m) => m.copyWith(description: v)),
             ),
@@ -180,7 +207,7 @@ class MetadataForm extends StatelessWidget {
         FormSection(
           title: 'Clasificación',
           children: [
-            Text('Demografía', style: Theme.of(context).textTheme.labelLarge),
+            label('Demografía', MetadataField.demographic),
             Wrap(
               spacing: AppSpacing.medium,
               runSpacing: AppSpacing.small,
@@ -194,7 +221,7 @@ class MetadataForm extends StatelessWidget {
                   ),
               ],
             ),
-            Text('Géneros', style: Theme.of(context).textTheme.labelLarge),
+            label('Géneros', MetadataField.genres),
             Wrap(
               spacing: AppSpacing.medium,
               runSpacing: AppSpacing.small,
@@ -210,6 +237,7 @@ class MetadataForm extends StatelessWidget {
             OutlinedDropdown<int?>(
               label: 'Calificación de calibre',
               value: m.rating,
+              helper: _hint(MetadataField.rating),
               onChanged: (v) => update((m) => m.copyWith(rating: v)),
               items: [
                 const DropdownMenuItem(value: null, child: Text('Sin calificar')),
@@ -226,19 +254,21 @@ class MetadataForm extends StatelessWidget {
                 Expanded(
                   child: InputDecorator(
                     decoration: const InputDecoration(labelText: 'Identificador único'),
-                    child: SelectableText('urn:uuid:${m.identifier}'),
+                    child: mixed.contains(MetadataField.identifier) ? const Text(mixedValuesHint) : SelectableText('urn:uuid:${m.identifier}'),
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Copiar',
-                  icon: const Icon(Icons.copy, size: 18),
-                  onPressed: () => Clipboard.setData(ClipboardData(text: 'urn:uuid:${m.identifier}')),
-                ),
-                IconButton(
-                  tooltip: 'Generar otro',
-                  icon: const Icon(Icons.refresh, size: 18),
-                  onPressed: cubit.regenerateIdentifier,
-                ),
+                if (!mixed.contains(MetadataField.identifier))
+                  IconButton(
+                    tooltip: 'Copiar',
+                    icon: const Icon(Icons.copy, size: 18),
+                    onPressed: () => Clipboard.setData(ClipboardData(text: 'urn:uuid:${m.identifier}')),
+                  ),
+                if (onRegenerateIdentifier case final regenerate?)
+                  IconButton(
+                    tooltip: 'Generar otro',
+                    icon: const Icon(Icons.refresh, size: 18),
+                    onPressed: regenerate,
+                  ),
               ],
             ),
             ResponsiveRow(
@@ -246,18 +276,21 @@ class MetadataForm extends StatelessWidget {
                 AppTextField(
                   label: 'ISBN-13',
                   value: m.isbn13,
+                  hint: _hint(MetadataField.isbn13),
                   error: m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13) ? 'ISBN-13 no válido' : null,
                   onChanged: (v) => update((m) => m.copyWith(isbn13: v)),
                 ),
                 AppTextField(
                   label: 'ISBN-10',
                   value: m.isbn10,
+                  hint: _hint(MetadataField.isbn10),
                   error: m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10) ? 'ISBN-10 no válido' : null,
                   onChanged: (v) => update((m) => m.copyWith(isbn10: v)),
                 ),
                 AppTextField(
                   label: 'ASIN de Amazon',
                   value: m.asin,
+                  hint: _hint(MetadataField.asin),
                   onChanged: (v) => update((m) => m.copyWith(asin: v.trim())),
                 ),
               ],
@@ -265,7 +298,7 @@ class MetadataForm extends StatelessWidget {
             AppTextField(
               label: 'Enlace de la publicación',
               value: m.sourceUrl,
-              hint: 'https://grupotraductor.com/nombre-novela',
+              hint: _hint(MetadataField.sourceUrl, 'https://grupotraductor.com/nombre-novela'),
               onChanged: (v) => update((m) => m.copyWith(sourceUrl: v.trim())),
             ),
           ],
@@ -322,9 +355,10 @@ class _LocalizedTexts extends StatelessWidget {
 }
 
 class _TitleSortField extends StatefulWidget {
-  const _TitleSortField({required this.value, required this.onChanged});
+  const _TitleSortField({required this.value, required this.onChanged, this.hint});
 
   final String value;
+  final String? hint;
   final ValueChanged<String> onChanged;
 
   @override
@@ -333,7 +367,7 @@ class _TitleSortField extends StatefulWidget {
 
 // Se usa poco: queda tras un botón mientras esté vacío.
 class _TitleSortFieldState extends State<_TitleSortField> {
-  late bool _open = widget.value.isNotEmpty;
+  late bool _open = widget.value.isNotEmpty || widget.hint != null;
 
   @override
   Widget build(BuildContext context) {
@@ -350,6 +384,7 @@ class _TitleSortFieldState extends State<_TitleSortField> {
     return AppTextField(
       label: 'Título para ordenar',
       value: widget.value,
+      hint: widget.hint,
       onChanged: widget.onChanged,
       suffix: IconButton(
         tooltip: 'Quitar',
@@ -461,9 +496,10 @@ class _ActorEditorState extends State<_ActorEditor> {
 }
 
 class _BookTypeField extends StatelessWidget {
-  const _BookTypeField({required this.value, required this.onChanged});
+  const _BookTypeField({required this.value, required this.onChanged, this.hint});
 
   final String value;
+  final String? hint;
   final ValueChanged<String> onChanged;
 
   @override
@@ -476,7 +512,7 @@ class _BookTypeField extends StatelessWidget {
         controller: controller,
         focusNode: focusNode,
         onChanged: onChanged,
-        decoration: const InputDecoration(labelText: 'Tipo'),
+        decoration: InputDecoration(labelText: 'Tipo', hintText: hint),
       ),
     );
   }
@@ -484,9 +520,10 @@ class _BookTypeField extends StatelessWidget {
 
 // Solo se elige desde el calendario, que se despliega bajo el campo.
 class _DateField extends StatefulWidget {
-  const _DateField({required this.value, required this.onChanged});
+  const _DateField({required this.value, required this.onChanged, this.hint});
 
   final String value;
+  final String? hint;
   final ValueChanged<String> onChanged;
 
   @override
@@ -526,6 +563,7 @@ class _DateFieldState extends State<_DateField> {
           isEmpty: date == null,
           decoration: InputDecoration(
             labelText: 'Fecha de publicación',
+            hintText: widget.hint,
             suffixIcon: date == null ? const Icon(Icons.calendar_today, size: 18) : IconButton(tooltip: 'Quitar fecha', icon: const Icon(Icons.close, size: 18), onPressed: () => widget.onChanged('')),
           ),
           child: Text(date == null ? '' : MaterialLocalizations.of(context).formatMediumDate(date)),
