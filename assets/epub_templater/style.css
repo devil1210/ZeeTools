@@ -114,6 +114,10 @@ i,
 ins,
 mark,
 q,
+rp,
+rt,
+rtc,
+ruby,
 s,
 small,
 span,
@@ -146,13 +150,15 @@ body > section > :last-child {
 }
 body {
   font-size: 100%;
-  line-height: 1.5;
+  line-height: 1.25;
   margin: 0;
   /* El lector impone sus márgenes de todos modos */
   padding: 0;
   widows: 2;
   /* iBooks y Kobo admiten viudas y huérfanas */
   orphans: 2;
+  text-wrap: pretty;
+  /* Decide los cortes de línea mirando el párrafo y no línea a línea */
 }
 /* TIPOGRAFÍA */
 h1,
@@ -206,11 +212,23 @@ hr {
     /* Corrige la página en blanco que provoca page-break-inside: avoid */
   }
 }
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: bold;
+  text-align: center;
+}
+/* Sobre 12pt: h1–h3 restan 1.5pt; desde h3 la distancia al texto se reduce un tercio por nivel */
 h1 {
-  font-size: 1.4375em;
-  line-height: 1.04347826;
-  margin-top: 0em;
-  margin-bottom: 2.08695652em;
+  font-size: 1.5em;
+  line-height: 1;
+  margin-top: 2.5em;
+  margin-top: 2.5lh;
+  margin-bottom: 2em;
+  margin-bottom: 2lh;
 }
 @media amzn-kf8 {
   h1 {
@@ -222,15 +240,17 @@ h1 {
   h1 {
     font-size: xx-large;
     /* Las palabras clave son más precisas en mobi 7 */
-    margin: 0 0 3em 0;
+    margin: 3em 0 2em 0;
     /* mobi 7 no admite decimales */
   }
 }
 h2 {
-  font-size: 1.3125em;
-  line-height: 1.14285714;
-  margin-top: 2.28571429em;
-  margin-bottom: 1.14285714em;
+  font-size: 1.375em;
+  line-height: 1.09090909;
+  margin-top: 2.18181818em;
+  margin-top: 2lh;
+  margin-bottom: 1.09090909em;
+  margin-bottom: 1lh;
 }
 @media amzn-kf8 {
   h2 {
@@ -245,10 +265,12 @@ h2 {
   }
 }
 h3 {
-  font-size: 1.125em;
-  line-height: 1.33333333;
-  margin-top: 1.33333333em;
-  margin-bottom: 1.33333333em;
+  font-size: 1.25em;
+  line-height: 1.2;
+  margin-top: 1.2em;
+  margin-top: 1lh;
+  margin-bottom: 1.2em;
+  margin-bottom: 1lh;
 }
 @media amzn-mobi {
   h3 {
@@ -257,9 +279,10 @@ h3 {
   }
 }
 h4 {
-  font-size: 1em;
-  line-height: 1.5;
-  margin-top: 1.5em;
+  font-size: 1.16666667em;
+  line-height: 1.28571429;
+  margin-top: 1.28571429em;
+  margin-top: 1lh;
   margin-bottom: 0em;
 }
 @media amzn-mobi {
@@ -269,13 +292,22 @@ h4 {
   }
 }
 h5 {
-  /* Estilos */
+  font-size: 1.11111111em;
+  line-height: 1.35;
+  margin-top: 1.35em;
+  margin-top: 1lh;
 }
 h6 {
-  /* Estilos */
+  font-size: 1.07407407em;
+  line-height: 1.39655172;
+  margin-top: 1.39655172em;
+  margin-top: 1lh;
 }
 p {
-  text-indent: 1em;
+  text-indent: 0;
+  margin: 1em 0;
+  margin: 1lh 0;
+  text-align: justify;
 }
 .footnote {
   font-size: 0.9375em;
@@ -289,6 +321,7 @@ p {
 }
 blockquote {
   margin: 1.5em 5%;
+  margin: 1lh 5%;
 }
 @media amzn-mobi {
   blockquote {
@@ -297,12 +330,6 @@ blockquote {
 }
 blockquote p {
   text-indent: 0;
-  font-style: italic;
-}
-blockquote p i,
-blockquote p em,
-blockquote p cite {
-  font-style: normal;
 }
 address {
   /* Estilos */
@@ -311,7 +338,6 @@ address {
 a {
   text-decoration: underline;
   /* KF8 impone este valor salvo que se use "el.clase a" */
-  font-weight: bold;
   color: inherit;
   -webkit-text-fill-color: inherit;
   /* Anula el color de iBooks en modo nocturno; inherit = color del texto */
@@ -357,10 +383,10 @@ mark {
   color: inherit;
 }
 ins {
-  /* Estilos */
+  text-decoration: underline;
 }
 small {
-  font-size: 0.8125em;
+  font-size: 0.83333333em;
 }
 @media amzn-mobi {
   small {
@@ -393,39 +419,65 @@ sup {
     font-size: x-small;
   }
 }
+/* Ruby: pronunciación, traducción o transliteración sobre la escritura de Asia oriental */
+rt {
+  font-size: 50%;
+  /* Puede hacer falta ajustar el interlineado para que quepa */
+  text-transform: full-size-kana;
+  /* Hace legibles los kana pequeños */
+}
 /* FIGURAS E IMÁGENES */
 figure {
+  margin: 1em 0;
+  margin: 1lh 0;
+  text-align: center;
   page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
   break-inside: avoid;
-  margin: 1.5em 0;
 }
-@media amzn-kf8 {
-  figure {
-    page-break-inside: auto;
-    break-inside: auto;
-    /* Corrige la página en blanco que provoca page-break-inside: avoid */
-  }
+figure img {
+  display: block;
 }
 figcaption,
 .caption {
+  margin: 0;
   font-size: 0.9375em;
-  line-height: 1.6;
+  line-height: 1.33333333;
+  /* Misma altura que una línea de texto */
   text-indent: 0;
+  text-align: center;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  break-inside: avoid;
+  /* Si la imagen llena la página, el pie pasa entero a la siguiente */
 }
 img {
   width: auto;
   max-width: 100%;
   /* KF8 no admite max-width, de ahí el respaldo "width: auto" */
   height: auto;
+  margin: 0 auto;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  break-inside: avoid;
   object-fit: contain;
   vertical-align: bottom;
   /* Elimina el hueco bajo la imagen */
+}
+@media amzn-kf8 {
+  img {
+    page-break-inside: auto;
+    break-inside: auto;
+    /* Corrige la página en blanco que provoca page-break-inside: avoid */
+  }
 }
 /* LISTAS */
 ul,
 ol {
   margin: 1.5em 0;
+  margin: 1lh 0;
   padding-left: 2em;
+  text-align: justify;
 }
 @media amzn-mobi {
   ul,
@@ -455,15 +507,18 @@ ol ol {
 }
 /* LISTAS DE DEFINICIONES */
 dl {
-  margin: 1.5em 0 1.5em 5%;
+  margin: 1.5em 0;
+  margin: 1lh 0;
+  padding-left: 2em;
 }
 @media amzn-mobi {
   dl {
-    margin: 1em 5%;
+    margin: 1em 0;
   }
 }
 dt {
   margin: 1.5em 0 0 0;
+  margin-top: 1lh;
   font-weight: bold;
 }
 @media amzn-mobi {
@@ -483,7 +538,9 @@ hr {
   width: 25%;
   margin-left: 37.5%;
   margin-top: 1.4375em;
+  margin-top: 1lh;
   margin-bottom: 1.4375em;
+  margin-bottom: 1lh;
   height: 0;
   border: none;
   border-top: 0.125em solid currentColor;
@@ -501,6 +558,7 @@ hr.transition {
   width: 100%;
   margin: 0;
   height: 1.5em;
+  height: 1lh;
   border: none;
   background: none;
   /* El modo nocturno lo anula salvo que se use linear-gradient */
@@ -513,6 +571,7 @@ table {
   border-spacing: 0;
   max-width: 100%;
   margin: 1.5em auto;
+  margin: 1lh auto;
   /* Adobe RMSDK convierte auto en 0, algo que permite una nota de la especificación EPUB 2 */
   font-feature-settings: "tnum" 1;
   font-variant-numeric: tabular-nums;
@@ -548,19 +607,20 @@ tr {
 }
 th {
   empty-cells: show;
-  border-bottom: 0.125em solid currentColor;
+  border: 0.125em solid currentColor;
   /* currentColor = color del texto, se invierte en modo nocturno */
-  padding: 0.6875em 10px 0.6875em 0;
+  padding: 0.125em 2px;
   text-align: left;
   font-weight: bold;
 }
 td {
   empty-cells: show;
-  border-bottom: 0.0625em solid currentColor;
+  border: 0.0625em solid currentColor;
   /* currentColor = color del texto, se invierte en modo nocturno */
-  padding: 0.75em 10px 0.6875em 0;
+  padding: 0.125em 2px;
   text-align: left;
 }
+/* El ancho de las columnas lo fija la primera fila */
 .table-fixed {
   table-layout: fixed;
 }
@@ -579,9 +639,11 @@ svg {
 .inline-block {
   display: inline-block;
 }
-.hidden {
+.hidden,
+.sigil_split_marker {
   /* Uso típico: TOC de puntos de referencia de EPUB 3 */
   display: none;
+  visibility: hidden;
 }
 /* Limpieza de flotantes */
 .clear {
@@ -598,7 +660,7 @@ svg {
 .boxed {
   border: 0.0625em solid currentColor;
   /* currentColor = color del texto, se invierte en modo nocturno */
-  padding: 0.6875em;
+  padding: 0 0.6875em;
 }
 /* Familias tipográficas */
 .sans {
@@ -612,7 +674,8 @@ svg {
   font-family: monospace;
 }
 /* Alineación de texto */
-.justified {
+.justified,
+.justified p {
   /* Pensada como clase para body: no se impone porque el ajuste del usuario prevalece sobre el del autor */
   text-align: justify;
   adobe-hyphenate: auto;
@@ -630,15 +693,20 @@ svg {
   -webkit-hyphenate-limit-last: always;
   hyphenate-limit-last: always;
 }
-.align-left {
+.align-left,
+.align-left p {
+  text-indent: 0;
+  /* El lector puede definir sangría para p */
   text-align: left;
 }
-.align-center {
+.align-center,
+.align-center p {
   text-indent: 0;
   /* El lector puede definir sangría para p */
   text-align: center;
 }
-.align-right {
+.align-right,
+.align-right p {
   text-indent: 0;
   /* El lector puede definir sangría para p */
   text-align: right;
@@ -675,30 +743,28 @@ svg {
 /* SALTOS DE PÁGINA */
 .break-before {
   page-break-before: always;
-  break-before: always;
+  /* Va primero: Kindle y KOReader ignoran column */
+  -webkit-column-break-before: always;
+  break-before: column;
+  /* Los lectores que paginan con columnas no saltan con page */
 }
-/* after tiene mejor soporte que before (Google, Kobo, etc.) */
 .break-after {
   page-break-after: always;
-  break-after: always;
+  -webkit-column-break-after: always;
+  break-after: column;
 }
-.break-inside {
-  page-break-inside: auto;
-  break-inside: auto;
+a.break-before,
+a.break-after,
+span.break-before,
+span.break-after,
+img.break-before,
+img.break-after {
+  display: block;
+  /* Los saltos solo actúan sobre bloques */
 }
-/* Soporte escaso: Adobe RMSDK lo respeta, el resto apenas */
-.no-break-before {
-  page-break-before: avoid;
-  break-before: avoid;
-}
-/* Soporte escaso: Adobe RMSDK lo respeta, el resto apenas */
-.no-break-after {
-  page-break-after: avoid;
-  break-after: avoid;
-}
-/* Funciona en iBooks; útil en figuras o para mantener juntos dos elementos */
 .no-break-inside {
   page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
   break-inside: avoid;
 }
 @media amzn-kf8 {
@@ -709,3 +775,185 @@ svg {
   }
 }
 /* Fin del CSS */
+/* Reglas propias de cada libro; quitar las que no se usen */
+/* Sangrías */
+.indent,
+.indent p {
+  text-indent: 1.5em;
+}
+.no-indent,
+.no-indent p {
+  text-indent: 0;
+}
+.hanging-indent {
+  text-indent: -1.5em;
+  margin-left: 1.5em;
+  /* Se reajusta con el tamaño de letra del usuario */
+}
+@media amzn-mobi {
+  .hanging-indent {
+    margin-left: 1em;
+    /* Truco para la sangría negativa */
+  }
+}
+/* Página de título */
+h1.title {
+  font-family: sans-serif;
+  margin-top: 1.5em;
+  margin-top: 1.5lh;
+  margin-bottom: 0;
+}
+h2.subtitle {
+  font-family: sans-serif;
+  margin-top: 0.5em;
+  margin-top: 0.5lh;
+  margin-bottom: 0;
+}
+div {
+  margin: 1em 0;
+  margin: 1lh 0;
+  text-align: justify;
+}
+div > p,
+div > ul,
+div > ol,
+div li {
+  margin: 0;
+}
+/* Notas */
+.note {
+  padding-top: 10%;
+  page-break-before: always;
+  -webkit-column-break-before: always;
+  break-before: column;
+}
+.note p {
+  text-indent: 0;
+}
+.note a {
+  text-decoration: none;
+}
+a sup {
+  font-weight: bold;
+}
+/* Útil en onomatopeyas fuertes */
+.large {
+  font-size: 1.16666666em;
+}
+@media amzn-mobi {
+  .large {
+    font-size: large;
+  }
+}
+.small {
+  font-size: 0.83333333em;
+}
+@media amzn-mobi {
+  .small {
+    font-size: small;
+  }
+}
+/* Imagen que crece hasta el primer borde de la página; el lector limita el alto sin deformarla */
+figure.fill {
+  margin: 0;
+  /* Un margen empujaría parte de la imagen a otra página */
+}
+figure.fill img {
+  width: 100%;
+}
+figure.logo img {
+  width: 54%;
+}
+/* Icono junto a un título */
+figure.icon img {
+  height: 5em;
+  height: 4lh;
+}
+/* Separador de escena o imagen dentro de un p o un h1; .large y .small la escalan */
+figure.text img,
+img.text {
+  height: 1em;
+}
+img.text {
+  margin: 0 0.25em;
+  vertical-align: -0.125em;
+}
+.list-indent {
+  padding-left: 2em;
+}
+/* Evita partir una palabra o frase entre líneas */
+.keep-together {
+  display: inline-block;
+}
+blockquote.warning {
+  border: 2px solid #ff3333;
+  margin-left: 15%;
+  margin-right: 15%;
+  padding: 0 0.6875em;
+}
+blockquote.warning p {
+  margin: 0.6875em 0;
+  color: #ff3333;
+}
+/* Espacio antes del elemento, en líneas */
+.space-0 {
+  margin-top: 0.5em;
+  margin-top: 0.5lh;
+}
+@media amzn-mobi {
+  .space-0 {
+    margin-top: 0;
+  }
+}
+.space-1 {
+  margin-top: 1.5em;
+  margin-top: 1lh;
+}
+@media amzn-mobi {
+  .space-1 {
+    margin-top: 1em;
+  }
+}
+.space-2 {
+  margin-top: 2em;
+  margin-top: 2lh;
+}
+.space-3 {
+  margin-top: 3em;
+  margin-top: 3lh;
+}
+/* Márgenes */
+.no-margin {
+  margin: 0;
+}
+/* Niveles 7 a 9: <p class="h7" role="heading" aria-level="7"> */
+.h7,
+.h8,
+.h9 {
+  display: block;
+  font-weight: bold;
+  text-indent: 0;
+  text-align: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+.h7 {
+  font-size: 1.04938272em;
+  line-height: 1.42941176;
+  margin-top: 1.42941176em;
+  margin-top: 1lh;
+}
+.h8 {
+  font-size: 1.03292181em;
+  line-height: 1.45219124;
+  margin-top: 1.45219124em;
+  margin-top: 1lh;
+}
+.h9 {
+  font-size: 1.02194787em;
+  line-height: 1.46778523;
+  margin-top: 1.46778523em;
+  margin-top: 1lh;
+}
