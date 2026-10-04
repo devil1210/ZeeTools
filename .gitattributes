@@ -1,0 +1,4 @@
+# Flutter regenera estos archivos con LF en cualquier sistema; fijarlo evita que aparezcan modificados al volver a generarse.
+linux/flutter/** text eol=lf
+macos/Flutter/** text eol=lf
+windows/flutter/** text eol=lf
