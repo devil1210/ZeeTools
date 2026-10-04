@@ -16,6 +16,7 @@ class AppTextField extends StatelessWidget {
     this.suffix,
     this.enabled = true,
     this.inputFormatters,
+    this.floatLabel = false,
   });
 
   final String label;
@@ -28,6 +29,8 @@ class AppTextField extends StatelessWidget {
   final Widget? suffix;
   final bool enabled;
   final List<TextInputFormatter>? inputFormatters;
+  // Mantiene la etiqueta arriba para que la sugerencia se vea sin enfocar el campo.
+  final bool floatLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +44,7 @@ class AppTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
+        floatingLabelBehavior: floatLabel ? FloatingLabelBehavior.always : null,
         helperText: helper,
         helperMaxLines: 3,
         errorText: error,

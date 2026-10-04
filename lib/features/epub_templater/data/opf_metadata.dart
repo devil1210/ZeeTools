@@ -208,7 +208,11 @@ class OpfMetadata {
       },
       titleSort: (title == null ? null : _refined(title, 'file-as')) ?? _named('calibre:title_sort') ?? '',
       altTitles: title == null ? const [] : _alternates(title),
-      date: _dc('date').firstOrNull?.innerText.trim() ?? '',
+      // calibre escribe 0101-01-01 cuando no hay fecha.
+      date: switch (_dc('date').firstOrNull?.innerText.trim() ?? '') {
+        final date when date.startsWith('0101-01-01') => '',
+        final date => date,
+      },
       bookType: _dc('type').firstOrNull?.innerText.trim() ?? '',
       description: _dc('description').firstOrNull?.innerText.trim() ?? '',
       actors: [...actors('creator', MarcRelator.aut), ...actors('contributor', MarcRelator.ctb)],

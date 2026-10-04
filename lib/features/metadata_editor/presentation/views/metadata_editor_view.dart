@@ -193,6 +193,7 @@ class _Form extends StatelessWidget {
       key: ValueKey(state.revision),
       metadata: state.form,
       mixed: state.mixed,
+      multiple: state.epubs.length > 1,
       showLinks: false,
       onChanged: cubit.updateForm,
       onRegenerateIdentifier: state.epubs.length == 1 ? cubit.regenerateIdentifier : null,

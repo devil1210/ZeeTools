@@ -94,4 +94,9 @@ void main() {
     expect(changed, {MetadataField.series, MetadataField.genres});
     expect(applyFields(b, form, changed), b.copyWith(series: 'Serie', genres: ['Drama']));
   });
+
+  test('descarta la fecha indefinida de calibre', () {
+    final opf = _legacyOpf.replaceFirst('2017-02-10T00:00:00Z', '0101-01-01T00:00:00+00:00');
+    expect(OpfMetadata(opf).read().date, isEmpty);
+  });
 }

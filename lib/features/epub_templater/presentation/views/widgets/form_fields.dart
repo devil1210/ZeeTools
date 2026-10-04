@@ -11,13 +11,14 @@ const languageSuggestions = {
 
 // Etiqueta de idioma BCP 47 con sugerencias; admite cualquier otra escrita a mano.
 class LanguageField extends StatefulWidget {
-  const LanguageField({super.key, required this.label, required this.value, required this.onChanged, this.error, this.hint, this.enabled = true});
+  const LanguageField({super.key, required this.label, required this.value, required this.onChanged, this.error, this.hint, this.floatLabel = false, this.enabled = true});
 
   final String label;
   final String value;
   final ValueChanged<String> onChanged;
   final String? error;
   final String? hint;
+  final bool floatLabel;
   final bool enabled;
 
   @override
@@ -42,6 +43,7 @@ class _LanguageFieldState extends State<LanguageField> {
       decoration: InputDecoration(
         labelText: widget.label,
         hintText: widget.hint,
+        floatingLabelBehavior: widget.floatLabel ? FloatingLabelBehavior.always : null,
         errorText: widget.error,
         suffixIcon: PopupMenuButton<String>(
           enabled: widget.enabled,
