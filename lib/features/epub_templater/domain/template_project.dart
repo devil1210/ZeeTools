@@ -14,6 +14,8 @@ abstract class TemplateProject with _$TemplateProject {
     @Default([]) List<TemplateSection> sections,
     @Default(BookMetadata()) BookMetadata metadata,
     @Default([]) List<EmbeddedFont> fonts,
+    // Comentarios que orientan al maquetador en el XHTML y en la hoja de estilos.
+    @Default(false) bool guideComments,
   }) = _TemplateProject;
 
   factory TemplateProject.fromJson(Map<String, dynamic> json) => _$TemplateProjectFromJson(json);
@@ -47,6 +49,14 @@ abstract class TemplateProject with _$TemplateProject {
         SectionKind.endnotes,
       ])
         TemplateSection.of(kind),
+    ],
+  );
+
+  // Una sección de cada tipo, en el orden de sus divisiones.
+  factory TemplateProject.allSections() => TemplateProject.initial().copyWith(
+    sections: [
+      for (final matter in BookMatter.values)
+        for (final kind in SectionKind.values.where((k) => k.matter == matter)) TemplateSection.of(kind),
     ],
   );
 }

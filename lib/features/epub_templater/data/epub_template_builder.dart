@@ -149,7 +149,7 @@ class EpubTemplateBuilder {
       _text('META-INF/container.xml', _containerXml),
       _text('META-INF/com.apple.ibooks.display-options.xml', _appleOptionsXml),
       _text('OEBPS/content.opf', _opf()),
-      _text('OEBPS/Styles/style.css', '$styleCss${_fontCss()}'),
+      _text('OEBPS/Styles/style.css', '${project.guideComments ? styleCss : _withoutGuideComments(styleCss)}${_fontCss()}'),
       _text('OEBPS/Styles/nav-style.css', navCss),
       _text('OEBPS/Text/$navFileName', _nav()),
     ];
@@ -477,6 +477,7 @@ class EpubTemplateBuilder {
 
   String _sectionXhtml(TemplateSection s, int page) {
     final b = StringBuffer(_xhtmlHead(s.effectiveTocLabel))..writeln('<body epub:type="${s.matter.epubType}">');
+    if (page == 0) _comment(b, s.kind.purpose, indent: '  ');
     final style = s.kind.layout == SectionLayout.text ? s.headingStyle : HeadingStyle.text;
     // La página del texto tras una separadora sigue siendo la misma sección, con su propio encabezado.
     final hasHeading = page == 0 || style == HeadingStyle.separatorPage;
@@ -487,27 +488,27 @@ class EpubTemplateBuilder {
     ];
     b.writeln('  <section ${attrs.join(' ')}>');
     final image = _imageNames[_headingImageOf(s)];
-    String figure(String className, String alt) => image == null ? '    <!-- Aquí va la imagen -->' : '    <figure class="$className"><img src="../Images/$image" alt="${_esc(alt)}"/></figure>';
+    void figure(String className, String alt) => image == null ? _comment(b, 'Aquí va la imagen') : b.writeln('    <figure class="$className"><img src="../Images/$image" alt="${_esc(alt)}"/></figure>');
 
     switch (style) {
       case HeadingStyle.text:
         if (page == 0) _writeHeading(b, s);
         _writeContent(b, s, page);
       case HeadingStyle.imageBefore:
-        b.writeln(figure('logo', ''));
+        figure('logo', '');
         _writeHeading(b, s);
         _writeContent(b, s, page);
       case HeadingStyle.imageAfter:
         _writeHeading(b, s);
-        b.writeln(figure('logo', ''));
+        figure('logo', '');
         _writeContent(b, s, page);
       case HeadingStyle.imageTitle:
         _writeHeading(b, s, hidden: true);
-        b.writeln(figure('fill', s.effectiveTocLabel));
+        figure('fill', s.effectiveTocLabel);
         _writeContent(b, s, page);
       case HeadingStyle.separatorPage when page == 0:
         _writeHeading(b, s, hidden: true);
-        b.writeln(figure('fill', s.effectiveTocLabel));
+        figure('fill', s.effectiveTocLabel);
       case HeadingStyle.separatorPage:
         _writeHeading(b, s, inToc: false);
         _writeContent(b, s, page);
@@ -543,11 +544,11 @@ class EpubTemplateBuilder {
   void _writeContent(StringBuffer b, TemplateSection s, int page) {
     switch (s.kind.layout) {
       case SectionLayout.text:
-        b.writeln('    <!-- Aquí va el contenido -->');
+        _comment(b, 'Aquí va el contenido');
       case SectionLayout.cover:
         final name = s.images.map((x) => _imageNames[x]).nonNulls.firstOrNull;
         if (name == null) {
-          b.writeln('    <!-- Aquí va la imagen de cubierta -->');
+          _comment(b, 'Aquí va la imagen de cubierta');
         } else {
           b.writeln('    <figure class="fill"><img role="doc-cover" src="../Images/$name" alt="${_esc('Cubierta de ${_bookDisplayTitle()}')}"/></figure>');
         }
@@ -557,13 +558,13 @@ class EpubTemplateBuilder {
           final alt = names.length == 1 ? s.title.trim() : '${s.title.trim()} ${page + 1}';
           b.writeln('    <figure class="fill"><img src="../Images/${names[page]}" alt="${_esc(alt)}"/></figure>');
         } else {
-          b.writeln('    <!-- Aquí van las imágenes -->');
+          _comment(b, 'Aquí van las imágenes');
         }
       case SectionLayout.titlePage:
         _writeTitlePage(b);
       case SectionLayout.synopsis:
         final paragraphs = _meta.description.split(RegExp(r'\n\s*\n|\n')).map((x) => x.trim()).where((x) => x.isNotEmpty);
-        if (paragraphs.isEmpty) b.writeln('    <!-- Aquí va la sinopsis -->');
+        if (paragraphs.isEmpty) _comment(b, 'Aquí va la sinopsis');
         for (final paragraph in paragraphs) {
           b.writeln('    <p>${_esc(paragraph)}</p>');
         }
@@ -583,11 +584,12 @@ class EpubTemplateBuilder {
           ...s.images.map((x) => _imageNames[x]).nonNulls,
           if (s.zeepubsLogo && _imageNames.containsKey(zeepubsLogoName)) _imageNames[zeepubsLogoName]!,
         ];
-        if (names.isEmpty) b.writeln('    <!-- Aquí van los logos -->');
+        if (names.isEmpty) _comment(b, 'Aquí van los logos');
         for (final name in names) {
           b.writeln('    <figure class="logo"><img class="space-3" src="../Images/$name" alt="${_esc('Logo ${p.basenameWithoutExtension(name)}')}"/></figure>');
         }
       case SectionLayout.notes:
+        if (!project.guideComments) break;
         b
           ..writeln('    <!-- Formato de cada nota; la llamada en el texto es:')
           ..writeln('    <a href="notas.xhtml#nt1" id="rf1" epub:type="noteref" role="doc-noteref"><sup>&#10094;01&#10095;</sup></a>')
@@ -596,6 +598,10 @@ class EpubTemplateBuilder {
           ..writeln('    </aside>')
           ..writeln('    -->');
     }
+  }
+
+  void _comment(StringBuffer b, String text, {String indent = '    '}) {
+    if (project.guideComments) b.writeln('$indent<!-- $text -->');
   }
 
   void _writeTitlePage(StringBuffer b) {
@@ -685,6 +691,14 @@ class EpubTemplateBuilder {
     return b.toString();
   }
 }
+
+// Comentarios de la hoja de estilos que solo orientan al maquetador.
+const _guideCssComments = [
+  '/* Reglas propias de cada libro; quitar las que no se usen */',
+  '/* Niveles 7 a 9: <p class="h7" role="heading" aria-level="7"> */',
+];
+
+String _withoutGuideComments(String css) => css.split('\n').where((line) => !_guideCssComments.contains(line.trim())).join('\n');
 
 String _esc(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 

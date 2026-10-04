@@ -34,9 +34,19 @@ class EpubTemplaterCubit extends Cubit<EpubTemplaterState> {
           qualityMode: _imageSettings.getQualityMode(),
         ),
       ) {
-    final draft = _profilesRepo.getDraft() ?? TemplateProject.initial();
-    emit(state.copyWith(project: _prepared(draft), profiles: _profilesRepo.getProfiles(), selectedKey: draft.sections.firstOrNull?.key));
+    var profiles = _profilesRepo.getProfiles();
+    var draft = _profilesRepo.getDraft();
+    // La primera ejecución arranca con un perfil que muestra todos los tipos de sección.
+    if (draft == null && profiles.isEmpty) {
+      draft = TemplateProject.allSections();
+      profiles = {allSectionsProfile: draft};
+      _profilesRepo.saveProfiles(profiles);
+    }
+    draft ??= TemplateProject.initial();
+    emit(state.copyWith(project: _prepared(draft), profiles: profiles, selectedKey: draft.sections.firstOrNull?.key));
   }
+
+  static const allSectionsProfile = 'Todas las secciones';
 
   final EpubTemplaterRepository _repo;
   final TemplateProfilesRepository _profilesRepo;
@@ -82,6 +92,8 @@ class EpubTemplaterCubit extends Cubit<EpubTemplaterState> {
   void regenerateIdentifier() => updateMetadata((m) => m.copyWith(identifier: uuidV7()));
 
   // ── Fuentes ────────────────────────────────────────────────────────────────
+
+  void setGuideComments(bool value) => _setProject(state.project.copyWith(guideComments: value));
 
   void updateFonts(List<EmbeddedFont> fonts) => _setProject(state.project.copyWith(fonts: fonts));
 

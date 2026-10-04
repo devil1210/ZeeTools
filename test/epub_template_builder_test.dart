@@ -207,6 +207,19 @@ void main() {
     expect(fileAsFor('  EURA '), 'EURA');
   });
 
+  test('los comentarios de guía solo se escriben si están activados', () {
+    final sections = [TemplateSection.of(SectionKind.chapter)];
+    final without = _build(_project(sections: sections));
+    expect(without['OEBPS/Text/capitulo01.xhtml'], isNot(contains('<!--')));
+    expect(without['OEBPS/Styles/style.css'], isNot(contains('Niveles 7 a 9')));
+    expect(without['OEBPS/Styles/style.css'], contains('/* Fin del CSS */'));
+
+    final withGuide = _build(_project(sections: sections).copyWith(guideComments: true));
+    expect(withGuide['OEBPS/Text/capitulo01.xhtml'], contains('<!-- ${SectionKind.chapter.purpose} -->'));
+    expect(withGuide['OEBPS/Text/capitulo01.xhtml'], contains('<!-- Aquí va el contenido -->'));
+    expect(withGuide['OEBPS/Styles/style.css'], contains('Niveles 7 a 9'));
+  });
+
   test('templateIssues detecta archivos repetidos y título vacío', () {
     final sections = [TemplateSection.of(SectionKind.chapter), TemplateSection.of(SectionKind.chapter)];
     final issues = templateIssues(_project(metadata: (m) => m.copyWith(title: ' '), sections: sections));

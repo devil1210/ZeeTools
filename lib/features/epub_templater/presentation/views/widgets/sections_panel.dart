@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '/common/theme/app_dimensions.dart';
 import '/common/widgets/confirm_dialog.dart';
+import '/common/widgets/toggle_field.dart';
 import '../../../domain/section_kind.dart';
 import '../../../domain/template_section.dart';
 import '../../cubit/epub_templater_cubit.dart';
@@ -69,6 +70,14 @@ class SectionsPanel extends StatelessWidget {
               ),
               AddSectionButton(onSelected: cubit.addSection),
             ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppPadding.large, 0, AppPadding.large, AppPadding.medium),
+          child: ToggleField(
+            label: 'Comentarios de guía',
+            value: context.select((EpubTemplaterCubit c) => c.state.project.guideComments),
+            onChanged: cubit.setGuideComments,
           ),
         ),
         const Divider(height: 1),

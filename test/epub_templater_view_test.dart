@@ -74,9 +74,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  test('la primera ejecución guarda y carga el perfil con todos los tipos de sección', () {
+    expect(profiles.getProfiles().keys, [EpubTemplaterCubit.allSectionsProfile]);
+    expect({for (final s in cubit.state.project.sections) s.kind}, SectionKind.values.toSet());
+    expect(cubit.state.project.guideComments, isFalse);
+  });
+
   testWidgets('secciones: lista inicial, añadir y editar la seleccionada', (tester) async {
     await pumpView(tester);
-    expect(find.text('Secciones (17)'), findsOneWidget);
+    expect(find.text('Secciones (${SectionKind.values.length})'), findsOneWidget);
     expect(find.text('cubierta.xhtml · Cubierta'), findsOneWidget);
     expect(find.text('El título es obligatorio.'), findsNothing);
 
@@ -84,13 +90,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Interludio').last);
     await tester.pumpAndSettle();
-    expect(find.text('Secciones (18)'), findsOneWidget);
+    expect(find.text('Secciones (${SectionKind.values.length + 1})'), findsOneWidget);
     expect(cubit.state.selected?.kind, SectionKind.interlude);
 
     await tester.enterText(find.widgetWithText(TextFormField, 'Subtítulo'), 'Entre capítulos');
     await tester.pump();
     expect(cubit.state.selected?.subtitle, 'Entre capítulos');
-    expect(find.text('Interludio 1: Entre capítulos'), findsWidgets);
+    expect(find.text('Interludio 2: Entre capítulos'), findsWidgets);
   });
 
   testWidgets('metadatos y perfiles: guardar, modificar y volver a cargar', (tester) async {
@@ -122,7 +128,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
     await tester.pumpAndSettle();
-    expect(profiles.getProfiles(), isEmpty);
+    expect(profiles.getProfiles().keys, [EpubTemplaterCubit.allSectionsProfile]);
   });
 
   testWidgets('géneros y demografía se marcan y desmarcan', (tester) async {
@@ -192,7 +198,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Restablecer'));
     await tester.pumpAndSettle();
-    expect(cubit.state.project.sections, hasLength(initial));
+    expect(cubit.state.project.sections, hasLength(TemplateProject.initial().sections.length));
   });
 
   test('las secciones se mantienen agrupadas por división', () {
@@ -201,7 +207,7 @@ void main() {
     cubit.select(chapter.key);
     cubit.addSection(SectionKind.dedication);
     final afterAdd = cubit.state.project.sections;
-    final dedication = afterAdd.firstWhere((s) => s.kind == SectionKind.dedication);
+    final dedication = afterAdd.lastWhere((s) => s.kind == SectionKind.dedication);
     expect(afterAdd.indexOf(dedication), afterAdd.lastIndexWhere((s) => s.matter == BookMatter.front));
 
     cubit.moveSection(chapter.key, BookMatter.back, 0);

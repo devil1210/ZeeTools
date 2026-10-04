@@ -26,6 +26,7 @@ enum SectionLayout {
 enum SectionKind {
   cover(
     label: 'Cubierta',
+    purpose: 'Cubierta: la imagen de portada del volumen.',
     fileName: 'cubierta',
     title: 'Cubierta',
     epubType: 'cover',
@@ -35,6 +36,7 @@ enum SectionKind {
   ),
   notice(
     label: 'Advertencia',
+    purpose: 'Advertencia sobre el contenido, antes de empezar la lectura.',
     fileName: 'advertencia',
     title: 'Advertencia',
     epubType: 'notice',
@@ -45,6 +47,7 @@ enum SectionKind {
   ),
   synopsis(
     label: 'Sinopsis',
+    purpose: 'Sinopsis: el texto de la contraportada o el resumen del volumen.',
     fileName: 'sinopsis',
     title: 'Sinopsis',
     epubType: 'abstract',
@@ -54,6 +57,7 @@ enum SectionKind {
   ),
   illustrations(
     label: 'Ilustraciones',
+    purpose: 'Ilustraciones a color del inicio del volumen, una por página.',
     fileName: 'resumen',
     title: 'Ilustraciones',
     matter: BookMatter.front,
@@ -62,6 +66,7 @@ enum SectionKind {
   ),
   authorProfile(
     label: 'Acerca del autor',
+    purpose: 'Presentación del autor o del ilustrador al inicio del volumen.',
     fileName: 'perfil',
     title: 'Acerca del autor(a)',
     epubType: 'foreword',
@@ -69,6 +74,7 @@ enum SectionKind {
   ),
   titlePage(
     label: 'Página de título',
+    purpose: 'Página de título con los créditos de la edición.',
     fileName: 'titulo',
     title: 'Página de título',
     epubType: 'titlepage',
@@ -77,6 +83,7 @@ enum SectionKind {
   ),
   colophon(
     label: 'Logos',
+    purpose: 'Logos del grupo de traducción y de los colaboradores.',
     fileName: 'logos',
     title: 'Logos',
     epubType: 'colophon',
@@ -87,6 +94,7 @@ enum SectionKind {
   ),
   contentsImage(
     label: 'Contenido',
+    purpose: 'Índice original del volumen como imagen.',
     fileName: 'contenido',
     title: 'Contenido',
     matter: BookMatter.front,
@@ -95,6 +103,7 @@ enum SectionKind {
   ),
   dedication(
     label: 'Dedicatoria',
+    purpose: 'Dedicatoria del autor.',
     fileName: 'dedicatoria',
     title: 'Dedicatoria',
     epubType: 'dedication',
@@ -103,6 +112,7 @@ enum SectionKind {
   ),
   epigraph(
     label: 'Epígrafe',
+    purpose: 'Cita o fragmento breve que abre la obra.',
     fileName: 'epigrafe',
     title: 'Epígrafe',
     epubType: 'epigraph',
@@ -112,6 +122,7 @@ enum SectionKind {
   ),
   preface(
     label: 'Prefacio',
+    purpose: 'Prefacio: texto del autor previo a la historia.',
     fileName: 'prefacio',
     title: 'Prefacio',
     epubType: 'preface',
@@ -119,6 +130,7 @@ enum SectionKind {
   ),
   prologue(
     label: 'Prólogo',
+    purpose: 'Prólogo: la primera parte de la narración.',
     fileName: 'prologo',
     title: 'Prólogo',
     epubType: 'prologue',
@@ -126,6 +138,7 @@ enum SectionKind {
   ),
   part(
     label: 'Parte',
+    purpose: 'Inicio de una parte que agrupa varios capítulos.',
     fileName: 'parte',
     title: 'Parte',
     epubType: 'part',
@@ -134,6 +147,7 @@ enum SectionKind {
   ),
   chapter(
     label: 'Capítulo',
+    purpose: 'Capítulo de la historia.',
     fileName: 'capitulo',
     title: 'Capítulo',
     epubType: 'chapter',
@@ -142,6 +156,7 @@ enum SectionKind {
   ),
   interlude(
     label: 'Interludio',
+    purpose: 'Interludio entre capítulos, dentro de la narración.',
     fileName: 'interludio',
     title: 'Interludio',
     epubType: 'chapter',
@@ -150,6 +165,7 @@ enum SectionKind {
   ),
   epilogue(
     label: 'Epílogo',
+    purpose: 'Epílogo: el cierre de la narración.',
     fileName: 'epilogo',
     title: 'Epílogo',
     epubType: 'epilogue',
@@ -157,6 +173,7 @@ enum SectionKind {
   ),
   afterword(
     label: 'Palabras del autor',
+    purpose: 'Palabras finales del autor.',
     fileName: 'autor',
     title: 'Palabras del autor',
     epubType: 'afterword',
@@ -164,6 +181,7 @@ enum SectionKind {
   ),
   translatorNotes(
     label: 'Palabras del traductor',
+    purpose: 'Palabras del traductor o del grupo.',
     fileName: 'traductor',
     title: 'Palabras del traductor',
     epubType: 'conclusion',
@@ -171,6 +189,7 @@ enum SectionKind {
   ),
   acknowledgments(
     label: 'Agradecimientos',
+    purpose: 'Agradecimientos.',
     fileName: 'agradecimientos',
     title: 'Agradecimientos',
     epubType: 'acknowledgments',
@@ -178,6 +197,7 @@ enum SectionKind {
   ),
   appendix(
     label: 'Apéndice',
+    purpose: 'Apéndice o capítulo extra después de la historia principal.',
     fileName: 'apendice',
     title: 'Apéndice',
     epubType: 'appendix',
@@ -185,6 +205,7 @@ enum SectionKind {
   ),
   backCover(
     label: 'Contracubierta',
+    purpose: 'Contracubierta: la imagen de la contraportada.',
     fileName: 'contracubierta',
     title: 'Contracubierta',
     matter: BookMatter.back,
@@ -194,6 +215,7 @@ enum SectionKind {
   ),
   endnotes(
     label: 'Notas',
+    purpose: 'Notas del traductor enlazadas desde el texto.',
     fileName: 'notas',
     title: 'Notas',
     epubType: 'endnotes',
@@ -203,6 +225,7 @@ enum SectionKind {
   ),
   generic(
     label: 'Sección libre',
+    purpose: 'Sección sin un tipo específico.',
     fileName: 'seccion',
     title: 'Sección',
     matter: BookMatter.body,
@@ -210,6 +233,7 @@ enum SectionKind {
 
   const SectionKind({
     required this.label,
+    required this.purpose,
     required this.fileName,
     required this.title,
     this.epubType = '',
@@ -221,6 +245,8 @@ enum SectionKind {
   });
 
   final String label;
+  // Qué parte de la novela contiene; se escribe como comentario de guía.
+  final String purpose;
   final String fileName;
   final String title;
   final String epubType;
