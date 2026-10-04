@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 
+import '/features/epub_templater/epub_templater_route.dart';
 import '/features/image_optimizer/image_optimizer_route.dart';
 import '/features/search_replace/search_replace_route.dart';
 import 'presentation/views/dashboard_view.dart';
@@ -15,6 +16,7 @@ abstract final class HomeRoute {
     routes: [
       SearchReplaceRoute.route,
       ImageOptimizerRoute.route,
+      EpubTemplaterRoute.route,
     ],
   );
 }

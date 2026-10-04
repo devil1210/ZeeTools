@@ -7,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'common/epub/repositories/epub_repo.dart';
 import 'common/process/native_tools_repo.dart';
 import 'common/widgets/speed_dial.dart';
+import 'features/epub_templater/data/epub_templater_repo.dart';
+import 'features/epub_templater/data/template_profiles_repo.dart';
+import 'features/epub_templater/presentation/cubit/epub_templater_cubit.dart';
 import 'features/home/data/layout_repo.dart';
 import 'features/image_optimizer/data/image_optimizer_engine.dart';
 import 'features/image_optimizer/data/image_optimizer_repo.dart';
@@ -36,11 +39,14 @@ Future<void> injectDependencies() async {
   getIt.registerLazySingleton<ImageOptimizerSettingsRepository>(() => ImageOptimizerSettingsRepositoryImpl(getIt()));
   // Caché de EPUBs independiente de la de búsqueda y reemplazo.
   getIt.registerLazySingleton<ImageOptimizerRepository>(() => ImageOptimizerRepositoryImpl(EpubRepositoryImpl(), getIt(), ImageOptimizerEngine()));
+  getIt.registerLazySingleton<EpubTemplaterRepository>(() => EpubTemplaterRepositoryImpl());
+  getIt.registerLazySingleton<TemplateProfilesRepository>(() => TemplateProfilesRepositoryImpl(getIt()));
 
   // Cubits
   getIt.registerFactory<SearchReplaceCubit>(() => SearchReplaceCubit(getIt(), getIt(), getIt()));
   getIt.registerFactory<SettingsCubit>(() => SettingsCubit(getIt()));
   getIt.registerFactory<ImageOptimizerCubit>(() => ImageOptimizerCubit(getIt(), getIt()));
+  getIt.registerFactory<EpubTemplaterCubit>(() => EpubTemplaterCubit(getIt(), getIt(), getIt(), getIt()));
 
   getIt.registerLazySingleton<ValueNotifier<List<SpeedDialAction>>>(() => ValueNotifier<List<SpeedDialAction>>([]));
 }

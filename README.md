@@ -5,7 +5,7 @@ Esta es una aplicación de escritorio desarrollada en Flutter que implementa una
 ZeeTools es un conjunto de herramientas enfocadas en la gestión y creación de archivos EPUB, incluyendo:
 - Búsqueda y reemplazo con soporte avanzado para Regex y grupos de captura.
 - Catálogo de Expresiones Regulares predefinidas para validaciones, búsquedas y correcciones tipográficas.
-- Generación de plantillas EPUB 3.4 con edición de roles Aria y metadatos.
+- Generación de plantillas EPUB 3.4 validadas con EPUBCheck: secciones dinámicas ordenables con su `epub:type`, rol ARIA y entrada en el índice; encabezados con imagen antes, después o en lugar del título y páginas separadoras; perfiles reutilizables por serie; formulario de metadatos con personas y sus funciones MARC, títulos y series en varios idiomas, géneros, demografía e identificadores (UUID v7, ISBN, ASIN), compatibles con calibre. Fuentes del sistema incrustadas y aplicadas por nivel de título o sugeridas para el texto.
 - Extracción y edición de metadatos mediante arrastrar y soltar (Drag & Drop).
 - Conversión automatizada de formatos DOCX/Markdown a EPUB integrando Pandoc y filtros Lua.
 - Optimización de imágenes sueltas o dentro de EPUBs (con o sin pérdida perceptible) al formato más ligero entre los core media types de EPUB 3.4 que elijas (JPEG, PNG, WebP, AVIF, JPEG XL), eliminando el canal alfa cuando no se usa y actualizando el OPF y las referencias si cambia la extensión. Usa jpegli, mozjpeg, libwebp, libavif, libjxl, oxipng y SSIMULACRA2.
@@ -170,9 +170,9 @@ lib/
 │   │   └── presentation/               # BLoCs, UI (Lista, visor, botones para insertar en Search&Replace)
 │   │
 │   ├── epub_templater/                 # Herramienta: Generador EPUB 3.4
-│   │   ├── core/                       # Entidades (Template, Section, AriaRoles), Contratos
-│   │   ├── data/                       # Lógica de estructuración y generación de archivos XML/HTML
-│   │   └── presentation/               # BLoCs, Formularios de metadatos, UI de secciones
+│   │   ├── domain/                     # Secciones, metadatos, funciones MARC, géneros y demografías
+│   │   ├── data/                       # Generación de OPF, XHTML y navegación, empaquetado y perfiles
+│   │   └── presentation/               # Cubit, editor de secciones, formulario de metadatos y perfiles
 │   │
 │   ├── epub_metadata/                  # Herramienta: Editor de Metadatos EPUB
 │   │   ├── core/                       # Entidades (EpubMetadata), Interfaces

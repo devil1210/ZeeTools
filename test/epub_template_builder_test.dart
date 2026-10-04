@@ -1,0 +1,215 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:xml/xml.dart';
+import 'package:zeetools/common/utils/uuid_v7.dart';
+import 'package:zeetools/features/epub_templater/data/epub_template_builder.dart';
+import 'package:zeetools/features/epub_templater/domain/book_metadata.dart';
+import 'package:zeetools/features/epub_templater/domain/embedded_font.dart';
+import 'package:zeetools/features/epub_templater/domain/marc_relator.dart';
+import 'package:zeetools/features/epub_templater/domain/section_kind.dart';
+import 'package:zeetools/features/epub_templater/domain/subjects.dart';
+import 'package:zeetools/features/epub_templater/domain/template_project.dart';
+import 'package:zeetools/features/epub_templater/domain/template_section.dart';
+
+final _png = Uint8List.fromList(const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+
+Map<String, String> _build(TemplateProject project, {Map<String, Uint8List> images = const {}}) {
+  final entries = EpubTemplateBuilder(
+    project: project,
+    styleCss: File('assets/epub_templater/style.css').readAsStringSync(),
+    navCss: File('assets/epub_templater/nav-style.css').readAsStringSync(),
+    images: images,
+    zeepubsLogo: _png,
+    now: DateTime.utc(2026, 10, 3, 12),
+  ).build();
+  expect(entries.first.path, 'mimetype');
+  return {for (final e in entries) e.path: e.path.contains('/Images/') ? '' : utf8.decode(e.bytes)};
+}
+
+TemplateProject _project({BookMetadata Function(BookMetadata m)? metadata, List<TemplateSection>? sections}) {
+  final base = TemplateProject.initial();
+  final m = base.metadata.copyWith(
+    identifier: uuidV7(),
+    title: 'Mitsuba Monogatari - Volumen 03 [KT]',
+    titleLang: 'ja-Latn',
+    altTitles: const [LocalizedText(lang: 'ja-Latn', text: 'Repetido'), LocalizedText(lang: 'es', text: 'La Historia de Mitsuba')],
+    actors: const [
+      Actor(name: 'Nanasawa Matari', altNames: [LocalizedText(lang: 'ja', text: '七沢またり')], roles: [MarcRelator.aut]),
+      Actor(name: 'EURA', roles: [MarcRelator.ill]),
+      Actor(name: 'Rin-san', roles: [MarcRelator.trl, MarcRelator.pfr]),
+      Actor(roles: [MarcRelator.mrk]),
+      Actor(name: 'ZeePubs', roles: [MarcRelator.dst]),
+    ],
+    publishers: const ['Kyuden Translations'],
+    series: 'Mitsuba’s Stories [NL]',
+    seriesIndex: '3',
+    demographic: Demographic.seinen,
+    genres: const ['Fantasía', 'Acción'],
+  );
+  return base.copyWith(metadata: metadata?.call(m) ?? m, sections: sections ?? base.sections);
+}
+
+void main() {
+  test('uuidV7 tiene versión 7, variante RFC y empieza por la marca de tiempo', () {
+    final at = DateTime.utc(2026, 10, 3);
+    final id = uuidV7(at);
+    expect(id, matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
+    expect(int.parse(id.replaceAll('-', '').substring(0, 12), radix: 16), at.millisecondsSinceEpoch);
+  });
+
+  test('valida ISBN-13 e ISBN-10 por dígito de control', () {
+    expect(isValidIsbn13('978-4-04-685088-1'), isTrue);
+    expect(isValidIsbn13('978-4-04-685088-2'), isFalse);
+    expect(isValidIsbn10('4-04-685088-4'), isTrue);
+    expect(isValidIsbn10('0-8044-2957-X'), isTrue);
+    expect(isValidIsbn10('4-04-685088-5'), isFalse);
+  });
+
+  test('todos los documentos generados son XML bien formado', () {
+    final files = _build(_project());
+    for (final MapEntry(key: path, value: content) in files.entries) {
+      if (path.endsWith('.xhtml') || path.endsWith('.opf') || path.endsWith('.xml')) {
+        expect(() => XmlDocument.parse(content), returnsNormally, reason: path);
+      }
+    }
+  });
+
+  test('metadatos: roles, IDs secuenciales, alternate-script y temas', () {
+    final opf = XmlDocument.parse(_build(_project())['OEBPS/content.opf']!);
+    final metas = opf.findAllElements('meta');
+    String? metaFor(String refines, String property) => metas.where((m) => m.getAttribute('refines') == '#$refines' && m.getAttribute('property') == property).firstOrNull?.innerText;
+
+    expect(opf.findAllElements('dc:creator').map((e) => e.getAttribute('id')), ['creator01', 'creator02']);
+    expect(opf.findAllElements('dc:contributor').map((e) => e.getAttribute('id')), ['contrib01', 'contrib02']);
+    expect(metas.where((m) => m.getAttribute('refines') == '#contrib01' && m.getAttribute('property') == 'role').map((m) => m.innerText), ['trl', 'pfr']);
+    expect(metaFor('creator01', 'alternate-script'), '七沢またり');
+
+    final titleAlternates = metas.where((m) => m.getAttribute('refines') == '#title' && m.getAttribute('property') == 'alternate-script');
+    expect(titleAlternates.map((m) => m.getAttribute('xml:lang')), ['es']);
+
+    expect(opf.findAllElements('dc:subject').map((e) => e.innerText), ['Maduro', 'Adultos/Seinen', 'Acción', 'Fantasía']);
+    expect(metaFor('serie', 'collection-type'), 'series');
+    expect(metaFor('serie', 'group-position'), '3');
+    expect(metas.where((m) => m.getAttribute('name') == 'calibre:series').single.getAttribute('content'), 'Mitsuba’s Stories [NL]');
+    expect(opf.toXmlString(), isNot(contains('xsd:')));
+  });
+
+  test('un volumen único no escribe datos de serie', () {
+    final files = _build(_project(metadata: (m) => m.copyWith(series: '')));
+    expect(files['OEBPS/content.opf'], isNot(contains('belongs-to-collection')));
+    expect(files['OEBPS/content.opf'], isNot(contains('calibre:series')));
+    expect(files['OEBPS/Text/titulo.xhtml'], contains('Volumen único'));
+  });
+
+  test('el índice anida los niveles y omite las secciones fuera de él', () {
+    final sections = [
+      TemplateSection.of(SectionKind.cover),
+      TemplateSection.of(SectionKind.part),
+      TemplateSection.of(SectionKind.chapter).copyWith(level: 2, subtitle: 'El inicio'),
+      TemplateSection.of(SectionKind.chapter, number: 2).copyWith(level: 3),
+      TemplateSection.of(SectionKind.epilogue),
+      TemplateSection.of(SectionKind.endnotes),
+    ];
+    final nav = XmlDocument.parse(_build(_project(sections: sections))['OEBPS/Text/toc.xhtml']!);
+    final toc = nav.findAllElements('nav').firstWhere((n) => n.getAttribute('epub:type') == 'toc');
+    final topLevel = toc.getElement('ol')!.childElements.map((li) => li.getElement('a')!.innerText);
+    expect(topLevel, ['Cubierta', 'Parte 1', 'Epílogo']);
+    final nested = toc.findAllElements('li').firstWhere((li) => li.getElement('a')!.innerText == 'Parte 1').getElement('ol')!;
+    expect(nested.findAllElements('a').map((a) => a.innerText), ['Capítulo 1: El inicio', 'Capítulo 2']);
+    expect(toc.findAllElements('a').map((a) => a.innerText), isNot(contains('Notas')));
+
+    final landmarks = nav.findAllElements('nav').firstWhere((n) => n.getAttribute('epub:type') == 'landmarks');
+    expect(landmarks.findAllElements('a').map((a) => a.getAttribute('epub:type')), containsAllInOrder(['cover', 'bodymatter', 'epilogue', 'endnotes', 'toc']));
+  });
+
+  test('las secciones de imágenes generan un archivo por imagen y la cubierta marca cover-image', () {
+    final sections = [
+      TemplateSection.of(SectionKind.cover).copyWith(images: ['C:/img/portada final.png']),
+      TemplateSection.of(SectionKind.illustrations).copyWith(images: ['C:/img/02.png', 'C:/img/03.png']),
+      TemplateSection.of(SectionKind.colophon),
+    ];
+    final files = _build(_project(sections: sections), images: {for (final p in ['C:/img/portada final.png', 'C:/img/02.png', 'C:/img/03.png']) p: _png});
+    expect(files.keys, containsAll(['OEBPS/Text/resumen.xhtml', 'OEBPS/Text/resumen_0001.xhtml', 'OEBPS/Images/cover.png', 'OEBPS/Images/02.png', 'OEBPS/Images/zeepubs.png']));
+    final opf = files['OEBPS/content.opf']!;
+    expect(opf, contains('<item id="cover.png" href="Images/cover.png" media-type="image/png" properties="cover-image"/>'));
+    expect(opf, contains('<item id="x02.png"'));
+    expect(files['OEBPS/Text/cubierta.xhtml'], contains('role="doc-cover"'));
+  });
+
+  test('página separadora: el índice apunta a la imagen y el título visible abre el segundo archivo', () {
+    final sections = [
+      TemplateSection.of(SectionKind.chapter).copyWith(headingStyle: HeadingStyle.separatorPage, headingImage: 'C:/img/05.png', subtitle: 'Mi primer amigo'),
+      TemplateSection.of(SectionKind.chapter, number: 2).copyWith(headingStyle: HeadingStyle.imageTitle, headingImage: 'C:/img/10.png'),
+      TemplateSection.of(SectionKind.chapter, number: 3).copyWith(headingStyle: HeadingStyle.imageBefore, headingImage: 'C:/img/star.png'),
+    ];
+    final files = _build(_project(sections: sections), images: {for (final n in ['05', '10', 'star']) 'C:/img/$n.png': _png});
+
+    final separator = XmlDocument.parse(files['OEBPS/Text/capitulo01.xhtml']!);
+    final hidden = separator.findAllElements('h1').single;
+    expect(hidden.getAttribute('class'), 'hidden');
+    expect(hidden.getAttribute('title'), 'Capítulo 1: Mi primer amigo');
+    expect(separator.findAllElements('figure').single.getAttribute('class'), 'fill');
+
+    final text = XmlDocument.parse(files['OEBPS/Text/capitulo01_0001.xhtml']!);
+    expect(text.findAllElements('h1').single.getAttribute('class'), 'sigil_not_in_toc');
+    expect(text.findAllElements('section').single.getAttribute('role'), 'doc-chapter');
+
+    final nav = files['OEBPS/Text/toc.xhtml']!;
+    expect(nav, contains('<a href="capitulo01.xhtml">Capítulo 1: Mi primer amigo</a>'));
+    expect(nav, isNot(contains('capitulo01_0001.xhtml')));
+
+    final banner = XmlDocument.parse(files['OEBPS/Text/capitulo02.xhtml']!);
+    expect(banner.findAllElements('img').single.getAttribute('alt'), 'Capítulo 2');
+    expect(separator.findAllElements('img').single.getAttribute('alt'), 'Capítulo 1: Mi primer amigo');
+    expect(banner.findAllElements('figure').single.getAttribute('class'), 'fill');
+
+    final before = files['OEBPS/Text/capitulo03.xhtml']!;
+    expect(before.indexOf('<figure class="logo">'), lessThan(before.indexOf('<h1')));
+  });
+
+  test('las fuentes incrustadas se declaran en el manifiesto y se aplican a sus niveles', () {
+    final font = (
+      font: const EmbeddedFont(family: 'Times New Roman', headingLevels: [1, 8]),
+      files: <FontFile>[(path: 'C:/f/times.ttf', bytes: _png, weight: 400, italic: false), (path: 'C:/f/timesbd.ttf', bytes: _png, weight: 700, italic: false)],
+    );
+    final entries = EpubTemplateBuilder(
+      project: _project(),
+      styleCss: File('assets/epub_templater/style.css').readAsStringSync(),
+      navCss: '',
+      images: const {},
+      fonts: [font],
+    ).build();
+    final files = {for (final e in entries) e.path: e};
+    expect(files.keys, containsAll(['OEBPS/Fonts/times.ttf', 'OEBPS/Fonts/timesbd.ttf']));
+    expect(utf8.decode(files['OEBPS/content.opf']!.bytes), contains('<item id="timesbd.ttf" href="Fonts/timesbd.ttf" media-type="font/ttf"/>'));
+    final css = utf8.decode(files['OEBPS/Styles/style.css']!.bytes);
+    expect(css, contains('font-weight: bold;\n  font-style: normal;\n  src: url(../Fonts/timesbd.ttf);'));
+    expect(css, endsWith('h1,\nh1.title,\n.h8,\n.font-times-new-roman {\n  font-family: "Times New Roman", serif;\n}\n'));
+  });
+
+  test('el rol ARIA se deriva siempre del epub:type', () {
+    final sections = [
+      TemplateSection.of(SectionKind.chapter),
+      TemplateSection.of(SectionKind.generic).copyWith(epubType: 'other-credits'),
+      TemplateSection.of(SectionKind.titlePage),
+    ];
+    final files = _build(_project(sections: sections));
+    expect(files['OEBPS/Text/capitulo01.xhtml'], contains('<section epub:type="chapter" role="doc-chapter"'));
+    expect(files['OEBPS/Text/seccion.xhtml'], contains('<section epub:type="other-credits" role="doc-credits"'));
+    expect(files['OEBPS/Text/titulo.xhtml'], contains('<section epub:type="titlepage" aria-labelledby'));
+  });
+
+  test('fileAsFor pone el apellido delante', () {
+    expect(fileAsFor('Nanasawa Matari'), 'Matari, Nanasawa');
+    expect(fileAsFor('  EURA '), 'EURA');
+  });
+
+  test('templateIssues detecta archivos repetidos y título vacío', () {
+    final sections = [TemplateSection.of(SectionKind.chapter), TemplateSection.of(SectionKind.chapter)];
+    final issues = templateIssues(_project(metadata: (m) => m.copyWith(title: ' '), sections: sections));
+    expect(issues.where((i) => i.level == IssueLevel.error).map((i) => i.message), containsAll(['El título es obligatorio.', 'El archivo «capitulo01» está repetido.']));
+  });
+}
