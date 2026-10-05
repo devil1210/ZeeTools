@@ -99,4 +99,18 @@ void main() {
     final opf = _legacyOpf.replaceFirst('2017-02-10T00:00:00Z', '0101-01-01T00:00:00+00:00');
     expect(OpfMetadata(opf).read().date, isEmpty);
   });
+
+  test('la descripción guarda los saltos como <br> y un <br> escrito a mano como texto', () {
+    const text = 'Primera línea\nSegunda <br> escrita & más';
+    expect(descriptionToHtml(text), 'Primera línea<br/>Segunda &lt;br&gt; escrita &amp; más');
+    expect(descriptionFromHtml(descriptionToHtml(text)), text);
+    expect(descriptionFromHtml('<p>Uno</p><p>Dos<br/>tres</p>'), 'Uno\n\nDos\ntres');
+    expect(descriptionFromHtml('La <Familia Hestia> y <b>Bell</b><br/>fin'), 'La <Familia Hestia> y Bell\nfin');
+
+    final opf = OpfMetadata(_legacyOpf);
+    final m = opf.read().copyWith(description: text);
+    final written = opf.write(_legacyOpf, m, now: DateTime.utc(2026));
+    expect(written, contains('<dc:description>Primera línea&lt;br/&gt;Segunda &amp;lt;br&amp;gt; escrita &amp;amp; más</dc:description>'));
+    expect(OpfMetadata(written).read().description, text);
+  });
 }

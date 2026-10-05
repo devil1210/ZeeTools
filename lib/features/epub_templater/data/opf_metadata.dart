@@ -10,6 +10,36 @@ const _opfNs = 'http://www.idpf.org/2007/opf';
 
 String xmlEscape(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
+// dc:description es HTML guardado como texto (así lo lee calibre): el texto se escapa y cada salto
+// de línea pasa a <br/>, válido tanto si el lector lo trata como HTML como si lo inserta en XHTML;
+// un «<br>» escrito a mano sigue siendo texto.
+String descriptionToHtml(String text) => text
+    .trim()
+    .replaceAll('\r\n', '\n')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('\n', '<br/>');
+
+const _entities = {'amp': '&', 'lt': '<', 'gt': '>', 'quot': '"', 'apos': "'", 'nbsp': '\u00a0'};
+
+// Etiquetas de HTML que se quitan al leer; cualquier otra cosa entre «<» y «>» (como «<Familia Hestia>»)
+// es texto de la sinopsis.
+final _htmlTag = RegExp(r'</?(p|div|span|b|i|em|strong|u|s|small|big|sup|sub|pre|blockquote|ul|ol|li|table|tbody|thead|tr|td|th|a|font|center)(\s[^>]*)?/?>', caseSensitive: false);
+
+// Inversa de [descriptionToHtml]; también entiende los párrafos <p> de otros editores.
+String descriptionFromHtml(String html) => html
+    .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+    .replaceAll(RegExp(r'</p>\s*<p[^>]*>', caseSensitive: false), '\n\n')
+    .replaceAll(_htmlTag, '')
+    .replaceAllMapped(RegExp(r'&(#x?[0-9a-fA-F]+|[a-zA-Z]+);'), (m) {
+      final ref = m.group(1)!;
+      if (ref.startsWith('#x') || ref.startsWith('#X')) return String.fromCharCode(int.parse(ref.substring(2), radix: 16));
+      if (ref.startsWith('#')) return String.fromCharCode(int.parse(ref.substring(1)));
+      return _entities[ref] ?? m.group(0)!;
+    })
+    .trim();
+
 final _uuid = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
 
 // Elementos del bloque <metadata> que se derivan de [BookMetadata]; el
@@ -67,7 +97,7 @@ void writeOpfMetadata(StringBuffer b, BookMetadata m, {required DateTime now}) {
   for (final subject in m.subjects) {
     b.writeln('    <dc:subject>${xmlEscape(subject)}</dc:subject>');
   }
-  if (m.description.trim().isNotEmpty) b.writeln('    <dc:description>${xmlEscape(m.description.trim())}</dc:description>');
+  if (m.description.trim().isNotEmpty) b.writeln('    <dc:description>${xmlEscape(descriptionToHtml(m.description))}</dc:description>');
   for (final (i, publisher) in m.publishers.where((x) => x.trim().isNotEmpty).indexed) {
     b.writeln('    <dc:publisher id="publisher${(i + 1).toString().padLeft(2, '0')}">${xmlEscape(publisher.trim())}</dc:publisher>');
   }
@@ -214,7 +244,7 @@ class OpfMetadata {
         final date => date,
       },
       bookType: _dc('type').firstOrNull?.innerText.trim() ?? '',
-      description: _dc('description').firstOrNull?.innerText.trim() ?? '',
+      description: descriptionFromHtml(_dc('description').firstOrNull?.innerText ?? ''),
       actors: [...actors('creator', MarcRelator.aut), ...actors('contributor', MarcRelator.ctb)],
       publishers: [for (final e in _dc('publisher')) e.innerText.trim()],
       isbn13: identifiers['isbn13'] ?? '',
