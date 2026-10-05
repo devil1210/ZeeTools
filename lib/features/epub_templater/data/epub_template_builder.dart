@@ -392,10 +392,17 @@ class EpubTemplateBuilder {
     final style = s.kind.layout == SectionLayout.text ? s.headingStyle : HeadingStyle.text;
     // La página del texto tras una separadora sigue siendo la misma sección, con su propio encabezado.
     final hasHeading = page == 0 || style == HeadingStyle.separatorPage;
+    final (headingHidden, headingInToc) = switch (style) {
+      HeadingStyle.imageTitle => (true, s.inToc),
+      HeadingStyle.separatorPage when page == 0 => (true, s.inToc),
+      HeadingStyle.separatorPage => (false, false),
+      _ => (false, s.inToc),
+    };
+    final labelledByHeading = hasHeading && !_purposeless(s, hidden: headingHidden, inToc: headingInToc);
     final attrs = [
       if (hasHeading && s.epubType.isNotEmpty) 'epub:type="${_esc(s.epubType)}"',
       if (hasHeading && s.role.isNotEmpty) 'role="${_esc(s.role)}"',
-      s.ariaLabel.trim().isNotEmpty || !hasHeading ? 'aria-label="${_esc(s.ariaLabel.trim().isEmpty ? s.effectiveTocLabel : s.ariaLabel.trim())}"' : 'aria-labelledby="encabezado"',
+      s.ariaLabel.trim().isNotEmpty || !labelledByHeading ? 'aria-label="${_esc(s.ariaLabel.trim().isEmpty ? s.effectiveTocLabel : s.ariaLabel.trim())}"' : 'aria-labelledby="encabezado"',
     ];
     b.writeln('  <section ${attrs.join(' ')}>');
     final image = _imageNames[_headingImageOf(s)];
@@ -431,9 +438,14 @@ class EpubTemplateBuilder {
     return b.toString();
   }
 
+  // Un encabezado oculto existe para que el índice apunte a la sección; fuera del índice no cumple
+  // ninguna función y la sección se nombra con aria-label.
+  bool _purposeless(TemplateSection s, {required bool hidden, required bool inToc}) => (hidden || s.hideHeading) && !inToc;
+
   void _writeHeading(StringBuffer b, TemplateSection s, {bool hidden = false, bool? inToc}) {
     final text = _headingText(s);
     final listed = inToc ?? s.inToc;
+    if (_purposeless(s, hidden: hidden, inToc: listed)) return;
     final classes = [
       if (s.kind.layout == SectionLayout.titlePage) 'title',
       if (hidden || s.hideHeading) 'hidden',
@@ -474,10 +486,11 @@ class EpubTemplateBuilder {
       case SectionLayout.titlePage:
         _writeTitlePage(b);
       case SectionLayout.synopsis:
-        final paragraphs = _meta.description.split(RegExp(r'\n\s*\n|\n')).map((x) => x.trim()).where((x) => x.isNotEmpty);
+        // Una línea en blanco separa párrafos; un salto simple es un <br/> dentro del párrafo.
+        final paragraphs = _meta.description.split(RegExp(r'\n\s*\n')).map((x) => x.trim()).where((x) => x.isNotEmpty);
         if (paragraphs.isEmpty) _comment(b, 'Aquí va la sinopsis');
         for (final paragraph in paragraphs) {
-          b.writeln('    <p>${_esc(paragraph)}</p>');
+          b.writeln('    <p>${paragraph.split('\n').map((line) => _esc(line.trim())).join('<br/>')}</p>');
         }
       case SectionLayout.notice:
         b

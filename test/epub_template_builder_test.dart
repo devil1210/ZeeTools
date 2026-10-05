@@ -225,4 +225,23 @@ void main() {
     final issues = templateIssues(_project(metadata: (m) => m.copyWith(title: ' '), sections: sections));
     expect(issues.where((i) => i.level == IssueLevel.error).map((i) => i.message), containsAll(['El título es obligatorio.', 'El archivo «capitulo01» está repetido.']));
   });
+
+  test('una sección fuera del índice no lleva encabezado oculto: se nombra con aria-label', () {
+    final files = _build(_project(sections: [TemplateSection.of(SectionKind.cover), TemplateSection.of(SectionKind.colophon), TemplateSection.of(SectionKind.backCover)]));
+    for (final name in ['logos', 'contracubierta']) {
+      final doc = files['OEBPS/Text/$name.xhtml']!;
+      expect(doc, isNot(contains('<h1')), reason: name);
+      expect(doc, contains('aria-label="'), reason: name);
+    }
+    expect(files['OEBPS/Text/cubierta.xhtml'], contains('<h1 id="encabezado" class="hidden">'));
+  });
+
+  test('la sinopsis separa párrafos por líneas en blanco y usa <br/> en los saltos simples', () {
+    final files = _build(_project(
+      metadata: (m) => m.copyWith(description: 'Uno\nDos\n\nTres <br> literal'),
+      sections: [TemplateSection.of(SectionKind.synopsis)],
+    ));
+    expect(files['OEBPS/Text/sinopsis.xhtml'], contains('<p>Uno<br/>Dos</p>'));
+    expect(files['OEBPS/Text/sinopsis.xhtml'], contains('<p>Tres &lt;br&gt; literal</p>'));
+  });
 }
