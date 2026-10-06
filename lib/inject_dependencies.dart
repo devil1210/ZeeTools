@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'common/epub/repositories/epub_repo.dart';
 import 'common/process/native_tools_repo.dart';
 import 'common/widgets/speed_dial.dart';
+import 'features/epub_migrator/data/epub_migrator_repo.dart';
+import 'features/epub_migrator/presentation/cubit/epub_migrator_cubit.dart';
 import 'features/epub_templater/data/amazon_repo.dart';
 import 'features/epub_templater/data/epub_templater_repo.dart';
 import 'features/epub_templater/data/template_profiles_repo.dart';
@@ -45,6 +47,7 @@ Future<void> injectDependencies() async {
   getIt.registerLazySingleton<EpubTemplaterRepository>(() => EpubTemplaterRepositoryImpl());
   getIt.registerLazySingleton<TemplateProfilesRepository>(() => TemplateProfilesRepositoryImpl(getIt()));
   getIt.registerLazySingleton<AmazonRepository>(() => AmazonRepositoryImpl(p.join(supportDir.path, 'amazon')));
+  getIt.registerLazySingleton<EpubMigratorRepository>(() => EpubMigratorRepositoryImpl());
   getIt.registerLazySingleton<EpubMetadataRepository>(() => EpubMetadataRepositoryImpl(EpubRepositoryImpl()));
 
   // Cubits
@@ -53,6 +56,7 @@ Future<void> injectDependencies() async {
   getIt.registerFactory<ImageOptimizerCubit>(() => ImageOptimizerCubit(getIt(), getIt()));
   getIt.registerFactory<EpubTemplaterCubit>(() => EpubTemplaterCubit(getIt(), getIt(), getIt(), getIt()));
   getIt.registerFactory<MetadataEditorCubit>(() => MetadataEditorCubit(getIt()));
+  getIt.registerFactory<EpubMigratorCubit>(() => EpubMigratorCubit(getIt()));
 
   getIt.registerLazySingleton<ValueNotifier<List<SpeedDialAction>>>(() => ValueNotifier<List<SpeedDialAction>>([]));
 }

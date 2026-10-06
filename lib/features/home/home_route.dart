@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 
+import '/features/epub_migrator/epub_migrator_route.dart';
 import '/features/epub_templater/epub_templater_route.dart';
 import '/features/image_optimizer/image_optimizer_route.dart';
 import '/features/metadata_editor/metadata_editor_route.dart';
@@ -19,6 +20,7 @@ abstract final class HomeRoute {
       ImageOptimizerRoute.route,
       EpubTemplaterRoute.route,
       MetadataEditorRoute.route,
+      EpubMigratorRoute.route,
     ],
   );
 }
