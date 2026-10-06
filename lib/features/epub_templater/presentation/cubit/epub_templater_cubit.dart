@@ -89,6 +89,12 @@ class EpubTemplaterCubit extends Cubit<EpubTemplaterState> {
 
   void updateMetadata(BookMetadata Function(BookMetadata m) update) => _setProject(state.project.copyWith(metadata: update(state.project.metadata)));
 
+  // Los metadatos de un EPUB existente sustituyen a los actuales, salvo el identificador.
+  void importMetadata(BookMetadata metadata, String source) {
+    _setProject(state.project.copyWith(metadata: metadata.copyWith(identifier: state.project.metadata.identifier)), replaced: true);
+    _message('Metadatos importados de «$source».');
+  }
+
   void regenerateIdentifier() => updateMetadata((m) => m.copyWith(identifier: uuidV7()));
 
   // ── Fuentes ────────────────────────────────────────────────────────────────
@@ -96,6 +102,8 @@ class EpubTemplaterCubit extends Cubit<EpubTemplaterState> {
   void setGuideComments(bool value) => _setProject(state.project.copyWith(guideComments: value));
 
   void updateFonts(List<EmbeddedFont> fonts) => _setProject(state.project.copyWith(fonts: fonts));
+
+  void setCustomCss(String css) => _setProject(state.project.copyWith(customCss: css));
 
   Future<List<FontFace>> systemFonts() => _repo.systemFonts();
 

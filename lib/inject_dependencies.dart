@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'common/epub/repositories/epub_repo.dart';
 import 'common/process/native_tools_repo.dart';
 import 'common/widgets/speed_dial.dart';
+import 'features/epub_templater/data/amazon_repo.dart';
 import 'features/epub_templater/data/epub_templater_repo.dart';
 import 'features/epub_templater/data/template_profiles_repo.dart';
 import 'features/epub_templater/presentation/cubit/epub_templater_cubit.dart';
@@ -43,6 +44,7 @@ Future<void> injectDependencies() async {
   getIt.registerLazySingleton<ImageOptimizerRepository>(() => ImageOptimizerRepositoryImpl(EpubRepositoryImpl(), getIt(), ImageOptimizerEngine()));
   getIt.registerLazySingleton<EpubTemplaterRepository>(() => EpubTemplaterRepositoryImpl());
   getIt.registerLazySingleton<TemplateProfilesRepository>(() => TemplateProfilesRepositoryImpl(getIt()));
+  getIt.registerLazySingleton<AmazonRepository>(() => AmazonRepositoryImpl(p.join(supportDir.path, 'amazon')));
   getIt.registerLazySingleton<EpubMetadataRepository>(() => EpubMetadataRepositoryImpl(EpubRepositoryImpl()));
 
   // Cubits

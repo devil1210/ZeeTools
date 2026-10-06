@@ -9,6 +9,7 @@ import '../domain/marc_relator.dart';
 import '../domain/section_kind.dart';
 import '../domain/template_project.dart';
 import '../domain/template_section.dart';
+import '../domain/title_languages.dart';
 import 'opf_metadata.dart';
 import 'system_fonts.dart';
 
@@ -63,6 +64,30 @@ bool isValidIsbn10(String isbn) {
   return sum % 11 == 0;
 }
 
+// Solo los ISBN-13 con prefijo 978 tienen equivalente de 10 dígitos.
+String? isbn10From13(String isbn) {
+  final d = _digits(isbn);
+  if (!isValidIsbn13(d) || !d.startsWith('978')) return null;
+  final core = d.substring(3, 12);
+  var sum = 0;
+  for (var i = 0; i < 9; i++) {
+    sum += int.parse(core[i]) * (10 - i);
+  }
+  final check = (11 - sum % 11) % 11;
+  return '$core${check == 10 ? 'X' : check}';
+}
+
+String? isbn13From10(String isbn) {
+  final d = _digits(isbn);
+  if (!isValidIsbn10(d)) return null;
+  final core = '978${d.substring(0, 9)}';
+  var sum = 0;
+  for (var i = 0; i < 12; i++) {
+    sum += int.parse(core[i]) * (i.isEven ? 1 : 3);
+  }
+  return '$core${(10 - sum % 10) % 10}';
+}
+
 String sanitizeFileName(String name) => name.trim().replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
 
 enum IssueLevel { error, warning }
@@ -78,6 +103,9 @@ List<TemplateIssue> templateIssues(TemplateProject project) {
   void add(IssueLevel level, IssueScope scope, String message) => issues.add((level: level, scope: scope, message: message));
 
   if (m.title.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El título es obligatorio.');
+  if (m.title.trim().isNotEmpty && localizedText(m.altTitles, spanishLanguage).trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El título en español es obligatorio.');
+  if (missingAlternates(m.altTitles).where((x) => x != 'en español').toList() case final missing when missing.isNotEmpty) add(IssueLevel.warning, IssueScope.metadata, 'Falta el título ${missing.join(', ')}.');
+  if (m.hasSeries && missingAlternates(m.altSeries).isNotEmpty) add(IssueLevel.warning, IssueScope.metadata, 'Falta la serie ${missingAlternates(m.altSeries).join(', ')}.');
   if (m.language.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El idioma es obligatorio.');
   if (m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-13 no es válido.');
   if (m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-10 no es válido.');
@@ -145,7 +173,7 @@ class EpubTemplateBuilder {
       _text('META-INF/container.xml', _containerXml),
       _text('META-INF/com.apple.ibooks.display-options.xml', _appleOptionsXml),
       _text('OEBPS/content.opf', _opf()),
-      _text('OEBPS/Styles/style.css', '${project.guideComments ? styleCss : _withoutGuideComments(styleCss)}${_fontCss()}'),
+      _text('OEBPS/Styles/style.css', '${project.guideComments ? styleCss : _withoutGuideComments(styleCss)}${_fontCss()}${_customCss()}'),
       _text('OEBPS/Styles/nav-style.css', navCss),
       _text('OEBPS/Text/$navFileName', _nav()),
     ];
@@ -593,6 +621,11 @@ class EpubTemplateBuilder {
         ..writeln('}');
     }
     return b.toString();
+  }
+
+  String _customCss() {
+    final css = project.customCss.trim();
+    return css.isEmpty ? '' : '\n$css\n';
   }
 
   String _xhtmlHead(String title, {List<String> styles = const ['style.css']}) {

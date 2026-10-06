@@ -4,6 +4,7 @@ import '/common/utils/uuid_v7.dart';
 import '../domain/book_metadata.dart';
 import '../domain/marc_relator.dart';
 import '../domain/subjects.dart';
+import '../domain/title_languages.dart';
 
 const _dcNs = 'http://purl.org/dc/elements/1.1/';
 const _opfNs = 'http://www.idpf.org/2007/opf';
@@ -229,16 +230,19 @@ class OpfMetadata {
         ),
     ];
 
+    String langOf(XmlElement? e) => switch (e == null ? '' : _lang(e)) {
+      '' => language,
+      final lang => lang,
+    };
+    final mainTitle = englishFirst(title?.innerText.trim() ?? '', langOf(title), title == null ? const [] : _alternates(title));
+    final series = englishFirst(collection?.innerText.trim() ?? _named('calibre:series') ?? '', langOf(collection), collection == null ? const [] : _alternates(collection));
     return BookMetadata(
       identifier: identifiers['identifier'] ?? '',
       language: language,
-      title: title?.innerText.trim() ?? '',
-      titleLang: switch (title == null ? '' : _lang(title)) {
-        final lang when lang != language => lang,
-        _ => '',
-      },
+      title: mainTitle.text,
+      titleLang: mainTitle.lang,
       titleSort: (title == null ? null : _refined(title, 'file-as')) ?? _named('calibre:title_sort') ?? '',
-      altTitles: title == null ? const [] : _alternates(title),
+      altTitles: mainTitle.alternates,
       // calibre escribe 0101-01-01 cuando no hay fecha.
       date: switch (_dc('date').firstOrNull?.innerText.trim() ?? '') {
         final date when date.startsWith('0101-01-01') => '',
@@ -254,12 +258,9 @@ class OpfMetadata {
       isbn10: identifiers['isbn10'] ?? '',
       asin: identifiers['asin'] ?? '',
       sourceUrl: identifiers['sourceUrl'] ?? '',
-      series: collection?.innerText.trim() ?? _named('calibre:series') ?? '',
-      seriesLang: switch (collection == null ? '' : _lang(collection)) {
-        final lang when lang != language => lang,
-        _ => '',
-      },
-      altSeries: collection == null ? const [] : _alternates(collection),
+      series: series.text,
+      seriesLang: series.lang,
+      altSeries: series.alternates,
       seriesIndex: (collection == null ? null : _refined(collection, 'group-position')) ?? _named('calibre:series_index') ?? '1',
       demographic: Demographic.values.where((d) => subjects.contains(d.label)).firstOrNull,
       genres: literaryGenres.where(subjects.contains).toList(),

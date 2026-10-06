@@ -10,18 +10,17 @@ import '/common/widgets/responsive_row.dart';
 import '/common/widgets/outlined_dropdown.dart';
 import '/common/widgets/editable_list.dart';
 import '/common/utils/input_formatters.dart';
+import 'amazon_lookup.dart';
 import '../../../data/epub_template_builder.dart';
 import '../../../domain/book_metadata.dart';
 import '../../../domain/marc_relator.dart';
 import '../../../domain/metadata_field.dart';
 import '../../../domain/subjects.dart';
+import '../../../domain/title_languages.dart';
 import 'form_fields.dart';
 
 const mixedValuesHint = 'Varios valores';
 const noValueHint = 'Sin valor';
-
-// Idiomas que, vacíos, toman el del libro y lo muestran.
-const _inheritedFields = {MetadataField.titleLang, MetadataField.seriesLang};
 
 // [mixed]: campos que difieren entre los libros editados; se muestran vacíos y
 // solo se aplican a todos si se les da un valor. Con [multiple], los campos que
@@ -38,7 +37,7 @@ class MetadataForm extends StatelessWidget {
 
   String? _status(MetadataField field) {
     if (mixed.contains(field)) return mixedValuesHint;
-    if (!multiple || _inheritedFields.contains(field)) return null;
+    if (!multiple) return null;
     return switch (field.read(metadata)) {
       null => noValueHint,
       String value when value.trim().isEmpty => noValueHint,
@@ -56,64 +55,133 @@ class MetadataForm extends StatelessWidget {
     final m = metadata;
     final update = onChanged;
     final hasSeries = m.hasSeries || mixed.contains(MetadataField.series);
+    final original = originalLanguageOf(m.altTitles) ?? originalLanguageOf(m.altSeries);
     Widget label(String text, MetadataField field) => Text([text, ?_status(field)].join(' · '), style: Theme.of(context).textTheme.labelLarge);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppPadding.large, AppPadding.large, AppPadding.large, 96),
       children: [
         FormSection(
-          title: 'Título y serie',
+          title: 'Identificadores',
           children: [
             ResponsiveRow(
-              widths: const [languageColumnWidth, null],
               children: [
-                LanguageField(
-                  label: 'Idioma',
-                  value: m.titleLang.isEmpty && !mixed.contains(MetadataField.titleLang) ? m.language : m.titleLang,
-                  hint: _hint(MetadataField.titleLang),
-                  floatLabel: _float(MetadataField.titleLang),
-                  onChanged: (v) => update((m) => m.copyWith(titleLang: v.trim())),
+                AppTextField(
+                  label: 'ASIN de Amazon',
+                  value: m.asin,
+                  hint: _hint(MetadataField.asin),
+                  floatLabel: _float(MetadataField.asin),
+                  onChanged: (v) => update((m) => m.copyWith(asin: v.trim().toUpperCase())),
                 ),
                 AppTextField(
-                  label: 'Título principal',
-                  value: m.title,
-                  hint: _hint(MetadataField.title, 'Nombre de la novela - Volumen 01 [SIGLAS]'),
-                  floatLabel: _float(MetadataField.title),
-                  error: m.title.trim().isEmpty && !mixed.contains(MetadataField.title) ? 'Obligatorio' : null,
-                  onChanged: (v) => update((m) => m.copyWith(title: v)),
+                  label: 'ISBN-13',
+                  value: m.isbn13,
+                  hint: _hint(MetadataField.isbn13, '978-XX-XXXX-XXX-X'),
+                  floatLabel: _float(MetadataField.isbn13),
+                  inputFormatters: [isbnFormatter(isbn13Groups)],
+                  error: m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13) ? 'ISBN-13 no válido' : null,
+                  onChanged: (v) => update((m) => m.copyWith(
+                    isbn13: v,
+                    isbn10: switch (isbn10From13(v)) {
+                      final ten? when m.isbn10.trim().isEmpty => formatIsbn(ten, isbn10Groups),
+                      _ => m.isbn10,
+                    },
+                  )),
+                ),
+                AppTextField(
+                  label: 'ISBN-10',
+                  value: m.isbn10,
+                  hint: _hint(MetadataField.isbn10, 'XX-XXXX-XXX-X'),
+                  floatLabel: _float(MetadataField.isbn10),
+                  inputFormatters: [isbnFormatter(isbn10Groups)],
+                  error: m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10) ? 'ISBN-10 no válido' : null,
+                  onChanged: (v) => update((m) => m.copyWith(
+                    isbn10: v,
+                    isbn13: switch (isbn13From10(v)) {
+                      final thirteen? when m.isbn13.trim().isEmpty => formatIsbn(thirteen, isbn13Groups),
+                      _ => m.isbn13,
+                    },
+                  )),
                 ),
               ],
+            ),
+            if (!multiple) AmazonLookup(asin: m.asin, metadata: m, onApply: update),
+            Row(
+              children: [
+                Expanded(
+                  child: InputDecorator(
+                    decoration: const InputDecoration(labelText: 'Identificador único'),
+                    child: mixed.contains(MetadataField.identifier) ? const Text(mixedValuesHint) : SelectableText('urn:uuid:${m.identifier}'),
+                  ),
+                ),
+                if (!mixed.contains(MetadataField.identifier))
+                  IconButton(
+                    tooltip: 'Copiar',
+                    icon: const Icon(Icons.copy, size: 18),
+                    onPressed: () => Clipboard.setData(ClipboardData(text: 'urn:uuid:${m.identifier}')),
+                  ),
+                if (onRegenerateIdentifier case final regenerate?)
+                  IconButton(
+                    tooltip: 'Generar otro',
+                    icon: const Icon(Icons.refresh, size: 18),
+                    onPressed: regenerate,
+                  ),
+              ],
+            ),
+            AppTextField(
+              label: 'Enlace de la publicación',
+              value: m.sourceUrl,
+              hint: _hint(MetadataField.sourceUrl, 'https://grupotraductor.com/nombre-novela'),
+              floatLabel: _float(MetadataField.sourceUrl),
+              onChanged: (v) => update((m) => m.copyWith(sourceUrl: v.trim())),
+            ),
+          ],
+        ),
+        FormSection(
+          title: 'Título y serie',
+          children: [
+            AppTextField(
+              label: 'Título en inglés',
+              value: m.title,
+              hint: _hint(MetadataField.title, 'Nombre de la novela - Volumen 01 [SIGLAS]'),
+              floatLabel: _float(MetadataField.title),
+              error: m.title.trim().isEmpty && !mixed.contains(MetadataField.title) ? 'Obligatorio' : null,
+              onChanged: (v) => update((m) => m.copyWith(title: v, titleLang: mainTitleLanguage)),
             ),
             _TitleSortField(
               value: m.titleSort,
               hint: mixed.contains(MetadataField.titleSort) ? mixedValuesHint : null,
               onChanged: (v) => update((m) => m.copyWith(titleSort: v)),
             ),
-            if (mixed.contains(MetadataField.altTitles)) label('Títulos en otros idiomas', MetadataField.altTitles),
-            _LocalizedTexts(
-              items: m.altTitles,
-              taken: m.titleLang.isEmpty ? m.language : m.titleLang,
-              textLabel: 'Título',
-              addLabel: 'Añadir título en otro idioma',
-              onChanged: (v) => update((m) => m.copyWith(altTitles: v)),
+            if (m.title.trim().isNotEmpty || mixed.contains(MetadataField.title) || original != null)
+              _Alternates(
+                items: m.altTitles,
+                original: original,
+                noun: 'Título',
+                hint: _hint(MetadataField.altTitles),
+                spanishRequired: !mixed.contains(MetadataField.altTitles),
+                showSpanish: m.title.trim().isNotEmpty || mixed.contains(MetadataField.title),
+                onChanged: (v) => update((m) => m.copyWith(altTitles: v)),
+              ),
+            OutlinedDropdown<OriginalLanguage?>(
+              label: 'Idioma original',
+              value: original,
+              helper: original == null ? 'Recomendado' : null,
+              onChanged: (v) => update((m) => m.copyWith(altTitles: withOriginalLanguage(m.altTitles, v), altSeries: m.hasSeries ? withOriginalLanguage(m.altSeries, v) : m.altSeries)),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Sin definir')),
+                for (final o in OriginalLanguage.values) DropdownMenuItem(value: o, child: Text(o.label)),
+              ],
             ),
             ResponsiveRow(
-              widths: const [languageColumnWidth, null, numberColumnWidth],
+              widths: const [null, numberColumnWidth],
               children: [
-                LanguageField(
-                  label: 'Idioma',
-                  value: m.seriesLang.isEmpty && !mixed.contains(MetadataField.seriesLang) ? m.language : m.seriesLang,
-                  hint: _hint(MetadataField.seriesLang),
-                  floatLabel: _float(MetadataField.seriesLang),
-                  enabled: hasSeries,
-                  onChanged: (v) => update((m) => m.copyWith(seriesLang: v.trim())),
-                ),
                 AppTextField(
-                  label: 'Serie',
+                  label: 'Serie en inglés',
                   value: m.series,
                   hint: _hint(MetadataField.series),
                   floatLabel: _float(MetadataField.series),
-                  onChanged: (v) => update((m) => m.copyWith(series: v)),
+                  onChanged: (v) => update((m) => m.copyWith(series: v, seriesLang: mainTitleLanguage, altSeries: m.hasSeries ? m.altSeries : withOriginalLanguage(m.altSeries, original))),
                 ),
                 AppTextField(
                   label: 'Volumen',
@@ -133,13 +201,12 @@ class MetadataForm extends StatelessWidget {
                 ),
               ],
             ),
-            if (hasSeries && mixed.contains(MetadataField.altSeries)) label('Series en otros idiomas', MetadataField.altSeries),
             if (hasSeries)
-              _LocalizedTexts(
+              _Alternates(
                 items: m.altSeries,
-                taken: m.seriesLang.isEmpty ? m.language : m.seriesLang,
-                textLabel: 'Serie',
-                addLabel: 'Añadir serie en otro idioma',
+                original: original,
+                noun: 'Serie',
+                hint: _hint(MetadataField.altSeries),
                 onChanged: (v) => update((m) => m.copyWith(altSeries: v)),
               ),
           ],
@@ -282,72 +349,58 @@ class MetadataForm extends StatelessWidget {
               onChanged: (v) => update((m) => m.copyWith(rating: v)),
               items: [
                 const DropdownMenuItem(value: null, child: Text('Sin calificar')),
-                for (var r = 1; r <= 10; r++) DropdownMenuItem(value: r, child: Text('${'★' * (r ~/ 2)}${r.isOdd ? '½' : ''}')),
+                for (var r = 1; r <= 10; r++) DropdownMenuItem(value: r, child: Text('${'★' * (r ~/ 2)}${r.isOdd ? '⯨' : ''}')),
               ],
             ),
           ],
         ),
-        FormSection(
-          title: 'Identificadores',
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: InputDecorator(
-                    decoration: const InputDecoration(labelText: 'Identificador único'),
-                    child: mixed.contains(MetadataField.identifier) ? const Text(mixedValuesHint) : SelectableText('urn:uuid:${m.identifier}'),
-                  ),
-                ),
-                if (!mixed.contains(MetadataField.identifier))
-                  IconButton(
-                    tooltip: 'Copiar',
-                    icon: const Icon(Icons.copy, size: 18),
-                    onPressed: () => Clipboard.setData(ClipboardData(text: 'urn:uuid:${m.identifier}')),
-                  ),
-                if (onRegenerateIdentifier case final regenerate?)
-                  IconButton(
-                    tooltip: 'Generar otro',
-                    icon: const Icon(Icons.refresh, size: 18),
-                    onPressed: regenerate,
-                  ),
-              ],
-            ),
-            ResponsiveRow(
-              children: [
-                AppTextField(
-                  label: 'ISBN-13',
-                  value: m.isbn13,
-                  hint: _hint(MetadataField.isbn13),
-                  floatLabel: _float(MetadataField.isbn13),
-                  error: m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13) ? 'ISBN-13 no válido' : null,
-                  onChanged: (v) => update((m) => m.copyWith(isbn13: v)),
-                ),
-                AppTextField(
-                  label: 'ISBN-10',
-                  value: m.isbn10,
-                  hint: _hint(MetadataField.isbn10),
-                  floatLabel: _float(MetadataField.isbn10),
-                  error: m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10) ? 'ISBN-10 no válido' : null,
-                  onChanged: (v) => update((m) => m.copyWith(isbn10: v)),
-                ),
-                AppTextField(
-                  label: 'ASIN de Amazon',
-                  value: m.asin,
-                  hint: _hint(MetadataField.asin),
-                  floatLabel: _float(MetadataField.asin),
-                  onChanged: (v) => update((m) => m.copyWith(asin: v.trim())),
-                ),
-              ],
-            ),
-            AppTextField(
-              label: 'Enlace de la publicación',
-              value: m.sourceUrl,
-              hint: _hint(MetadataField.sourceUrl, 'https://grupotraductor.com/nombre-novela'),
-              floatLabel: _float(MetadataField.sourceUrl),
-              onChanged: (v) => update((m) => m.copyWith(sourceUrl: v.trim())),
-            ),
-          ],
-        ),
+      ],
+    );
+  }
+}
+
+// Equivalentes de un título o serie en español y, si se eligió, en el idioma
+// original romanizado y en su escritura.
+class _Alternates extends StatelessWidget {
+  const _Alternates({required this.items, required this.original, required this.noun, required this.onChanged, this.hint, this.spanishRequired = false, this.showSpanish = true});
+
+  final List<LocalizedText> items;
+  final OriginalLanguage? original;
+  final String noun;
+  final String? hint;
+  final bool spanishRequired;
+  final bool showSpanish;
+  final ValueChanged<List<LocalizedText>> onChanged;
+
+  Widget _field(String label, String lang, {bool required = false}) {
+    final value = localizedText(items, lang);
+    final empty = value.trim().isEmpty && hint == null;
+    return AppTextField(
+      label: '$noun $label',
+      value: value,
+      hint: hint,
+      floatLabel: hint != null,
+      error: empty && required ? 'Obligatorio' : null,
+      helper: empty && !required ? 'Recomendado' : null,
+      onChanged: (v) => onChanged(withLocalizedText(items, lang, v)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final original = this.original;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: AppSpacing.medium + AppSpacing.small,
+      children: [
+        if (showSpanish) _field('en español', spanishLanguage, required: spanishRequired),
+        if (original != null)
+          ResponsiveRow(
+            children: [
+              _field('en ${original.romanization}', original.romanized),
+              _field('en ${original.label.toLowerCase()}', original.name),
+            ],
+          ),
       ],
     );
   }

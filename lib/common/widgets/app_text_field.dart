@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// Campo no controlado: el valor inicial solo se lee al construirse, por lo que
-// el formulario que lo contiene se reconstruye con otra clave al cambiar de proyecto.
-class AppTextField extends StatelessWidget {
+// Sigue a [value]: lo escrito se notifica con onChanged y un valor que llega
+// de fuera (datos importados o derivados) reemplaza el texto del campo.
+class AppTextField extends StatefulWidget {
   const AppTextField({
     super.key,
     required this.label,
@@ -33,22 +33,44 @@ class AppTextField extends StatelessWidget {
   final bool floatLabel;
 
   @override
+  State<AppTextField> createState() => _AppTextFieldState();
+}
+
+class _AppTextFieldState extends State<AppTextField> {
+  late final _controller = TextEditingController(text: widget.value);
+
+  @override
+  void didUpdateWidget(AppTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Lo que el padre normaliza al escribir (p. ej. quitar espacios) no mueve el cursor.
+    if (widget.value != _controller.text && widget.value != oldWidget.value && widget.value.trim() != _controller.text.trim()) {
+      _controller.value = TextEditingValue(text: widget.value, selection: TextSelection.collapsed(offset: widget.value.length));
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TextFormField(
-      initialValue: value,
-      onChanged: onChanged,
-      enabled: enabled,
-      inputFormatters: inputFormatters,
+      controller: _controller,
+      onChanged: widget.onChanged,
+      enabled: widget.enabled,
+      inputFormatters: widget.inputFormatters,
       minLines: 1,
-      maxLines: maxLines,
+      maxLines: widget.maxLines,
       decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        floatingLabelBehavior: floatLabel ? FloatingLabelBehavior.always : null,
-        helperText: helper,
+        labelText: widget.label,
+        hintText: widget.hint,
+        floatingLabelBehavior: widget.floatLabel ? FloatingLabelBehavior.always : null,
+        helperText: widget.helper,
         helperMaxLines: 3,
-        errorText: error,
-        suffixIcon: suffix,
+        errorText: widget.error,
+        suffixIcon: widget.suffix,
       ),
     );
   }

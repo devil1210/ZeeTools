@@ -1,8 +1,13 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path/path.dart' as p;
 
 import '/common/theme/app_dimensions.dart';
+import '/common/utils/either.dart';
 import '/common/widgets/confirm_dialog.dart';
+import '/features/metadata_editor/data/epub_metadata_repo.dart';
+import '/inject_dependencies.dart';
 import '../../cubit/epub_templater_cubit.dart';
 
 // El nombre en edición es estado local: teclearlo solo reconstruye esta barra.
@@ -15,6 +20,23 @@ class ProfileBar extends StatefulWidget {
 
 class _ProfileBarState extends State<ProfileBar> {
   String _name = '';
+
+  // Un solo EPUB: la plantilla es de un libro.
+  Future<void> _import() async {
+    final cubit = context.read<EpubTemplaterCubit>();
+    final path = (await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['epub'],
+      dialogTitle: 'Importar metadatos de un EPUB',
+      windowsOptions: const WindowsOptions(lockParentWindow: true),
+      linuxOptions: const LinuxOptions(lockParentWindow: true),
+    )).map((f) => f.path).whereType<String>().firstOrNull;
+    if (path == null) return;
+    final repo = getIt<EpubMetadataRepository>();
+    final result = await repo.load(path);
+    repo.unload(path);
+    result.fold((error) => cubit.notify(error, isError: true), (metadata) => cubit.importMetadata(metadata, p.basename(path)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +66,11 @@ class _ProfileBarState extends State<ProfileBar> {
                 ),
               ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.upload_file_outlined),
+            tooltip: 'Importar metadatos de un EPUB',
+            onPressed: _import,
           ),
           IconButton(
             icon: const Icon(Icons.save_outlined),

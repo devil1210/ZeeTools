@@ -105,7 +105,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Obligatorio'), findsOneWidget);
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Título principal'), 'Mi novela - Volumen 01 [MN]');
+    expect(find.widgetWithText(TextFormField, 'Título en español'), findsNothing);
+    await tester.enterText(find.widgetWithText(TextFormField, 'Título en inglés'), 'My Novel - Volumen 01 [MN]');
+    await tester.pump();
+    expect(find.text('Obligatorio'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextFormField, 'Título en español'), 'Mi novela - Volumen 01');
     await tester.pump();
     expect(find.text('Obligatorio'), findsNothing);
     final identifier = cubit.state.project.metadata.identifier;
@@ -117,11 +121,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(profiles.getProfiles()['Serie A']?.metadata.identifier, isEmpty);
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Título principal'), 'Otro título');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Título en inglés'), 'Otro título');
     await tester.pump();
     await tester.tap(find.byTooltip('Cargar perfil'));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextFormField, 'Mi novela - Volumen 01 [MN]'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'My Novel - Volumen 01 [MN]'), findsOneWidget);
     expect(cubit.state.project.metadata.identifier, allOf(isNotEmpty, isNot(identifier)));
 
     await tester.tap(find.byTooltip('Eliminar perfil'));
@@ -146,7 +150,7 @@ void main() {
     expect(cubit.state.project.metadata.subjects, ['Juvenil', 'Chicas/Shoujo', 'Acción']);
   });
 
-  testWidgets('volumen único por defecto; escribir la serie habilita su idioma y volumen numérico', (tester) async {
+  testWidgets('volumen único por defecto; escribir la serie habilita su volumen numérico', (tester) async {
     await pumpView(tester);
     await tester.tap(find.text('Metadatos'));
     await tester.pumpAndSettle();
@@ -154,7 +158,7 @@ void main() {
     expect(cubit.state.project.metadata.hasSeries, isFalse);
     expect(volume().enabled, isFalse);
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Serie'), 'Mitsuba’s Stories');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Serie en inglés'), 'Mitsuba’s Stories');
     await tester.pumpAndSettle();
     expect(cubit.state.project.metadata.hasSeries, isTrue);
     expect(volume().enabled, isTrue);
@@ -165,18 +169,36 @@ void main() {
     expect(cubit.state.project.metadata.seriesIndex, '3.5');
   });
 
-  testWidgets('un idioma repetido entre los títulos se marca como error', (tester) async {
-    await pumpView(tester);
+  testWidgets('el idioma original añade el título y la serie romanizados y en su escritura', (tester) async {
+    await pumpView(tester, size: const Size(1280, 2000));
     await tester.tap(find.text('Metadatos'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Añadir título en otro idioma'));
+    await tester.enterText(find.widgetWithText(TextFormField, 'Título en inglés'), 'Mitsuba’s Story');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Serie en inglés'), 'Mitsuba’s Stories');
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'Idioma').at(1), 'es');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Título en español'), 'La historia de Mitsuba');
     await tester.pumpAndSettle();
-    expect(find.text('Idioma repetido'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, 'Idioma').at(1), 'ja');
+    expect(find.widgetWithText(TextFormField, 'Título en romaji'), findsNothing);
+
+    await tester.tap(find.text('Sin definir'));
     await tester.pumpAndSettle();
-    expect(find.text('Idioma repetido'), findsNothing);
+    await tester.tap(find.text('Japonés').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextFormField, 'Título en japonés'), '三葉の物語');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Título en romaji'), 'Mitsuba no Monogatari');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Serie en romaji'), 'Mitsuba no Monogatari');
+    await tester.pumpAndSettle();
+    final m = cubit.state.project.metadata;
+    expect(m.titleLang, 'en');
+    expect([for (final t in m.altTitles) t.lang], ['es', 'ja-Latn', 'ja']);
+    expect([for (final t in m.altSeries) (t.lang, t.text)], [('ja-Latn', 'Mitsuba no Monogatari'), ('ja', '')]);
+
+    await tester.tap(find.text('Japonés'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Coreano').last);
+    await tester.pumpAndSettle();
+    expect([for (final t in cubit.state.project.metadata.altTitles) (t.lang, t.text)], [('es', 'La historia de Mitsuba'), ('ko-Latn', 'Mitsuba no Monogatari'), ('ko', '三葉の物語')]);
+    expect(find.widgetWithText(TextFormField, 'Título en romanización'), findsOneWidget);
   });
 
   testWidgets('eliminar una sección pide confirmación y restablecer recupera las iniciales', (tester) async {
@@ -222,7 +244,7 @@ void main() {
 
   testWidgets('fuentes: la de ejemplo se aplica a h1 y se añaden niveles', (tester) async {
     await pumpView(tester);
-    await tester.tap(find.text('Fuentes'));
+    await tester.tap(find.text('Fuentes y CSS'));
     await tester.pumpAndSettle();
     expect(find.text('Times New Roman'), findsOneWidget);
 

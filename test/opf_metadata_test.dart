@@ -4,6 +4,7 @@ import 'package:zeetools/features/epub_templater/domain/book_metadata.dart';
 import 'package:zeetools/features/epub_templater/domain/marc_relator.dart';
 import 'package:zeetools/features/epub_templater/domain/metadata_field.dart';
 import 'package:zeetools/features/epub_templater/domain/subjects.dart';
+import 'package:zeetools/features/epub_templater/domain/title_languages.dart';
 
 // Metadatos con la forma de la plantilla anterior: colección «set», urn:uri y prefijos xsd.
 const _legacyOpf = '''<?xml version="1.0" encoding="utf-8"?>
@@ -125,5 +126,26 @@ void main() {
     expect(written, contains('<dc:subject>Acción</dc:subject>\n    <dc:subject>A color</dc:subject>\n    <dc:subject>Sin censura</dc:subject>'));
     expect(written, isNot(contains('Sin Censura')));
     expect(written, contains('<dc:subject>Mecha</dc:subject>'));
+  });
+
+  test('el título en inglés pasa a principal y el que estaba queda como equivalente', () {
+    final opf = _legacyOpf.replaceFirst(
+      '<dc:title>86 - Volumen 01 [ShinsengumiTL]</dc:title>',
+      '''<dc:title id="title">86 - Volumen 01 [ShinsengumiTL]</dc:title>
+    <meta refines="#title" property="alternate-script" xml:lang="en">86 - Volume 01 [ShinsengumiTL]</meta>
+    <meta refines="#title" property="alternate-script" xml:lang="ja">８６―エイティシックス―</meta>''',
+    );
+    final m = OpfMetadata(opf).read();
+    expect((m.title, m.titleLang), ('86 - Volume 01 [ShinsengumiTL]', 'en'));
+    expect(m.altTitles, const [LocalizedText(lang: 'es', text: '86 - Volumen 01 [ShinsengumiTL]'), LocalizedText(lang: 'ja', text: '８６―エイティシックス―')]);
+    expect(OpfMetadata(opf).write(opf, m, now: DateTime.utc(2026)), contains('<dc:title id="title" xml:lang="en">86 - Volume 01 [ShinsengumiTL]</dc:title>'));
+  });
+
+  test('faltan el español y el idioma original; elegido este, su romanización y su escritura', () {
+    expect(missingAlternates(const []), ['en español', 'en el idioma original']);
+    final items = withOriginalLanguage(const [LocalizedText(lang: 'es', text: 'Bruja errante')], OriginalLanguage.ja);
+    expect(missingAlternates(items), ['en romaji', 'en japonés']);
+    expect(missingAlternates(withLocalizedText(withLocalizedText(items, 'ja', '魔女の旅々'), 'ja-Latn', 'Majo no Tabitabi')), isEmpty);
+    expect(withOriginalLanguage(items, null), const [LocalizedText(lang: 'es', text: 'Bruja errante')]);
   });
 }

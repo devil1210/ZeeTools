@@ -58,8 +58,8 @@ abstract class BookMetadata with _$BookMetadata {
     @Default('') String identifier,
     @Default('es') String language,
     @Default('') String title,
-    // Idioma del título principal cuando difiere de [language] (p. ej. romaji).
-    @Default('') String titleLang,
+    // El título y la serie principales van en inglés; vacío equivale a [language].
+    @Default('en') String titleLang,
     @Default('') String titleSort,
     @Default([]) List<LocalizedText> altTitles,
     @Default('') String date,
@@ -73,7 +73,7 @@ abstract class BookMetadata with _$BookMetadata {
     @Default('') String asin,
     @Default('') String sourceUrl,
     @Default('') String series,
-    @Default('') String seriesLang,
+    @Default('en') String seriesLang,
     @Default([]) List<LocalizedText> altSeries,
     @Default('1') String seriesIndex,
     Demographic? demographic,

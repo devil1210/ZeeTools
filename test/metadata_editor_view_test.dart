@@ -74,6 +74,8 @@ void main() {
 
     cubit.remove('C:/s/v01.epub');
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Fecha de publicación'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Fecha de publicación'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
@@ -84,13 +86,13 @@ void main() {
     repo.books
       ..['C:/s/v01.epub'] = const BookMetadata(identifier: 'a', title: 'Uno', language: 'es', titleLang: 'ja-Latn', bookType: 'Novela Ligera')
       ..['C:/s/v02.epub'] = const BookMetadata(identifier: 'b', title: 'Dos', language: 'en', bookType: 'Novela Web');
-    await tester.binding.setSurfaceSize(const Size(1400, 1600));
+    await tester.binding.setSurfaceSize(const Size(1400, 2400));
     await tester.pumpWidget(const MaterialApp(home: MetadataEditorView()));
     await cubit.open(['C:/s/v01.epub', 'C:/s/v02.epub']);
     await tester.pumpAndSettle();
 
     InputDecoration decorationOf(String label) => tester.widgetList<InputDecorator>(find.byType(InputDecorator)).firstWhere((d) => d.decoration.labelText == label).decoration;
-    for (final (label, hint) in [('Idioma del libro', mixedValuesHint), ('Idioma', mixedValuesHint), ('Tipo', mixedValuesHint), ('Serie', noValueHint), ('Fecha de publicación', noValueHint), ('Título principal', mixedValuesHint)]) {
+    for (final (label, hint) in [('Idioma del libro', mixedValuesHint), ('Tipo', mixedValuesHint), ('Serie en inglés', noValueHint), ('Fecha de publicación', noValueHint), ('Título en inglés', mixedValuesHint)]) {
       final decoration = decorationOf(label);
       expect((label, decoration.hintText), (label, hint));
       expect((label, decoration.floatingLabelBehavior), (label, FloatingLabelBehavior.always));

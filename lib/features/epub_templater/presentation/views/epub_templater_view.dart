@@ -129,7 +129,7 @@ class _EpubTemplaterContentState extends State<_EpubTemplaterContent> {
                 Tab(icon: Icon(Icons.list_alt), text: 'Secciones'),
                 Tab(icon: Icon(Icons.badge_outlined), text: 'Metadatos'),
                 Tab(icon: Icon(Icons.photo_library_outlined), text: 'Imágenes'),
-                Tab(icon: Icon(Icons.font_download_outlined), text: 'Fuentes'),
+                Tab(icon: Icon(Icons.font_download_outlined), text: 'Fuentes y CSS'),
               ],
             ),
           ),

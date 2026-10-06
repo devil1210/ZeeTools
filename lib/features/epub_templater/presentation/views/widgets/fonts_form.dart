@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
 
 import '/common/theme/app_dimensions.dart';
+import '/common/widgets/app_text_field.dart';
 import '/common/widgets/selection_pill.dart';
 import '/common/widgets/file_drop_button.dart';
 import '/common/widgets/form_section.dart';
@@ -47,6 +48,21 @@ class FontsForm extends StatelessWidget {
               ]);
             }
           },
+        ),
+        const SizedBox(height: AppSpacing.large),
+        FormSection(
+          title: 'CSS propio',
+          children: [
+            AppTextField(
+              key: ValueKey(context.select((EpubTemplaterCubit c) => c.state.revision)),
+              label: 'Reglas',
+              value: context.select((EpubTemplaterCubit c) => c.state.project.customCss),
+              hint: '.carta {\n  font-style: italic;\n}',
+              helper: 'Se añaden al final de style.css, después de las fuentes.',
+              maxLines: 16,
+              onChanged: cubit.setCustomCss,
+            ),
+          ],
         ),
       ],
     );

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
+import 'package:zeetools/common/utils/input_formatters.dart';
 import 'package:zeetools/common/utils/uuid_v7.dart';
 import 'package:zeetools/features/epub_templater/data/epub_template_builder.dart';
 import 'package:zeetools/features/epub_templater/domain/book_metadata.dart';
@@ -66,6 +67,27 @@ void main() {
     expect(isValidIsbn10('4-04-685088-4'), isTrue);
     expect(isValidIsbn10('0-8044-2957-X'), isTrue);
     expect(isValidIsbn10('4-04-685088-5'), isFalse);
+  });
+
+  test('ISBN con los guiones del template y conversión entre 13 y 10 dígitos', () {
+    expect(formatIsbn('9784046850881', isbn13Groups), '978-40-4685-088-1');
+    expect(formatIsbn('978404', isbn13Groups), '978-40-4');
+    expect(formatIsbn('404685088x', isbn10Groups), '40-4685-088-X');
+    expect(isbn10From13('978-4-04-685088-1'), '4046850884');
+    expect(isbn13From10('4-04-685088-4'), '9784046850881');
+    expect(isbn10From13('979-10-90636-07-1'), isNull);
+  });
+
+  test('el CSS propio va al final de style.css', () {
+    final style = _build(_project().copyWith(customCss: '.carta {\n  font-style: italic;\n}\n'))['OEBPS/Styles/style.css']!;
+    expect(style, endsWith('\n.carta {\n  font-style: italic;\n}\n'));
+  });
+
+  test('el título en español es obligatorio una vez escrito el principal', () {
+    String? issue(TemplateProject p) => templateIssues(p).where((i) => i.message == 'El título en español es obligatorio.').firstOrNull?.message;
+    expect(issue(_project()), isNull);
+    expect(issue(_project(metadata: (m) => m.copyWith(altTitles: const []))), isNotNull);
+    expect(issue(_project(metadata: (m) => m.copyWith(title: '', altTitles: const []))), isNull);
   });
 
   test('todos los documentos generados son XML bien formado', () {

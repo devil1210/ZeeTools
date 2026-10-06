@@ -16,6 +16,8 @@ abstract class TemplateProject with _$TemplateProject {
     @Default([]) List<EmbeddedFont> fonts,
     // Comentarios que orientan al maquetador en el XHTML y en la hoja de estilos.
     @Default(false) bool guideComments,
+    // Reglas propias del libro; van al final de style.css.
+    @Default('') String customCss,
   }) = _TemplateProject;
 
   factory TemplateProject.fromJson(Map<String, dynamic> json) => _$TemplateProjectFromJson(json);
