@@ -70,13 +70,19 @@ List<LocalizedText> withOriginalLanguage(List<LocalizedText> items, OriginalLang
   );
 }
 
-// Equivalentes que faltan; no impiden generar el EPUB.
-List<String> missingAlternates(List<LocalizedText> items) {
-  final original = originalLanguageOf(items);
-  return [
-    if (localizedText(items, spanishLanguage).trim().isEmpty) 'en español',
-    if (original == null) 'en el idioma original',
-    if (original != null && localizedText(items, original.romanized).trim().isEmpty) 'en ${original.romanization}',
-    if (original != null && localizedText(items, original.name).trim().isEmpty) 'en ${original.label.toLowerCase()}',
-  ];
+const _languageNames = {'es': 'español', 'en': 'inglés', 'ja': 'japonés', 'ko': 'coreano', 'zh': 'chino', 'fr': 'francés', 'pt': 'portugués', 'it': 'italiano', 'de': 'alemán'};
+
+// Nombre en minúscula para las etiquetas («Título en japonés»); el código si no se conoce.
+String languageName(String code) => _languageNames[_key(code).split('-').first] ?? code.trim();
+
+// El idioma del libro, salvo el inglés del principal, es el equivalente obligatorio del título.
+String? requiredAlternate(String bookLanguage) {
+  final base = _key(bookLanguage).split('-').first;
+  return base.isEmpty || base == mainTitleLanguage ? null : base;
 }
+
+// Falta el equivalente en el idioma del libro.
+bool missingRequired(List<LocalizedText> items, String bookLanguage) => switch (requiredAlternate(bookLanguage)) {
+  final lang? => localizedText(items, lang).trim().isEmpty,
+  null => false,
+};

@@ -92,7 +92,8 @@ void main() {
     await tester.pumpAndSettle();
 
     InputDecoration decorationOf(String label) => tester.widgetList<InputDecorator>(find.byType(InputDecorator)).firstWhere((d) => d.decoration.labelText == label).decoration;
-    for (final (label, hint) in [('Idioma del libro', mixedValuesHint), ('Tipo', mixedValuesHint), ('Serie en inglés', noValueHint), ('Fecha de publicación', noValueHint), ('Título en inglés', mixedValuesHint)]) {
+    expect(find.descendant(of: find.widgetWithText(InputDecorator, 'Idioma del libro'), matching: find.text(mixedValuesHint)), findsOneWidget);
+    for (final (label, hint) in [('Tipo', mixedValuesHint), ('Serie en inglés', noValueHint), ('Fecha de publicación', noValueHint), ('Título en inglés', mixedValuesHint)]) {
       final decoration = decorationOf(label);
       expect((label, decoration.hintText), (label, hint));
       expect((label, decoration.floatingLabelBehavior), (label, FloatingLabelBehavior.always));

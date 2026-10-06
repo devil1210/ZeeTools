@@ -2,21 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '/common/theme/app_dimensions.dart';
-import '/common/widgets/tag_pill.dart';
-import '/common/widgets/selection_pill.dart';
-import '/common/widgets/app_text_field.dart';
-import '/common/widgets/form_section.dart';
-import '/common/widgets/responsive_row.dart';
-import '/common/widgets/outlined_dropdown.dart';
-import '/common/widgets/editable_list.dart';
 import '/common/utils/input_formatters.dart';
-import 'amazon_lookup.dart';
+import '/common/widgets/app_text_field.dart';
+import '/common/widgets/editable_list.dart';
+import '/common/widgets/form_section.dart';
+import '/common/widgets/outlined_dropdown.dart';
+import '/common/widgets/responsive_row.dart';
+import '/common/widgets/selection_pill.dart';
+import '/common/widgets/tag_pill.dart';
+import '/features/settings/data/preferences_repo.dart';
+import '/features/settings/domain/date_display_format.dart';
+import '/inject_dependencies.dart';
 import '../../../data/epub_template_builder.dart';
 import '../../../domain/book_metadata.dart';
 import '../../../domain/marc_relator.dart';
 import '../../../domain/metadata_field.dart';
 import '../../../domain/subjects.dart';
 import '../../../domain/title_languages.dart';
+import 'amazon_lookup.dart';
 import 'form_fields.dart';
 
 const mixedValuesHint = 'Varios valores';
@@ -55,7 +58,9 @@ class MetadataForm extends StatelessWidget {
     final m = metadata;
     final update = onChanged;
     final hasSeries = m.hasSeries || mixed.contains(MetadataField.series);
-    final original = originalLanguageOf(m.altTitles) ?? originalLanguageOf(m.altSeries);
+    final required = requiredAlternate(m.language);
+    final bookOriginal = OriginalLanguage.values.where((o) => o.name == required).firstOrNull;
+    final original = bookOriginal ?? originalLanguageOf(m.altTitles) ?? originalLanguageOf(m.altSeries);
     Widget label(String text, MetadataField field) => Text([text, ?_status(field)].join(' · '), style: Theme.of(context).textTheme.labelLarge);
 
     return ListView(
@@ -156,20 +161,21 @@ class MetadataForm extends StatelessWidget {
             if (m.title.trim().isNotEmpty || mixed.contains(MetadataField.title) || original != null)
               _Alternates(
                 items: m.altTitles,
+                required: required,
                 original: original,
                 noun: 'Título',
                 hint: _hint(MetadataField.altTitles),
-                spanishRequired: !mixed.contains(MetadataField.altTitles),
-                showSpanish: m.title.trim().isNotEmpty || mixed.contains(MetadataField.title),
+                requiredError: !mixed.contains(MetadataField.altTitles),
+                showRequired: m.title.trim().isNotEmpty || mixed.contains(MetadataField.title),
                 onChanged: (v) => update((m) => m.copyWith(altTitles: v)),
               ),
             OutlinedDropdown<OriginalLanguage?>(
-              label: 'Idioma original',
+              label: 'Idioma en que se escribió la obra',
               value: original,
-              helper: original == null ? 'Recomendado' : null,
-              onChanged: (v) => update((m) => m.copyWith(altTitles: withOriginalLanguage(m.altTitles, v), altSeries: m.hasSeries ? withOriginalLanguage(m.altSeries, v) : m.altSeries)),
+              helper: bookOriginal != null ? 'El del libro.' : 'Opcional: añade el título y la serie romanizados y en su escritura.',
+              onChanged: bookOriginal != null ? null : (v) => update((m) => m.copyWith(altTitles: withOriginalLanguage(m.altTitles, v), altSeries: m.hasSeries ? withOriginalLanguage(m.altSeries, v) : m.altSeries)),
               items: [
-                const DropdownMenuItem(value: null, child: Text('Sin definir')),
+                const DropdownMenuItem(value: null, child: Text('Otro o sin indicar')),
                 for (final o in OriginalLanguage.values) DropdownMenuItem(value: o, child: Text(o.label)),
               ],
             ),
@@ -204,6 +210,7 @@ class MetadataForm extends StatelessWidget {
             if (hasSeries)
               _Alternates(
                 items: m.altSeries,
+                required: required,
                 original: original,
                 noun: 'Serie',
                 hint: _hint(MetadataField.altSeries),
@@ -229,12 +236,16 @@ class MetadataForm extends StatelessWidget {
           children: [
             ResponsiveRow(
               children: [
-                LanguageField(
+                OutlinedDropdown<String?>(
                   label: 'Idioma del libro',
-                  value: m.language,
+                  value: mixed.contains(MetadataField.language) ? null : m.language,
                   hint: _hint(MetadataField.language),
                   floatLabel: _float(MetadataField.language),
-                  onChanged: (v) => update((m) => m.copyWith(language: v.trim())),
+                  onChanged: (v) => update((m) => m.copyWith(language: v ?? m.language)),
+                  items: [
+                    for (final MapEntry(key: code, value: name) in bookLanguages.entries) DropdownMenuItem(value: code, child: Text(name)),
+                    if (m.language.isNotEmpty && !bookLanguages.containsKey(m.language) && !mixed.contains(MetadataField.language)) DropdownMenuItem(value: m.language, child: Text(m.language)),
+                  ],
                 ),
                 _BookTypeField(
                   value: m.bookType,
@@ -359,20 +370,23 @@ class MetadataForm extends StatelessWidget {
   }
 }
 
-// Equivalentes de un título o serie en español y, si se eligió, en el idioma
-// original romanizado y en su escritura.
+// Equivalentes de un título o serie: el del idioma del libro (obligatorio en el
+// título, recomendado en la serie), el español y, si se eligió, el idioma en
+// que se escribió la obra, romanizado y en su escritura.
 class _Alternates extends StatelessWidget {
-  const _Alternates({required this.items, required this.original, required this.noun, required this.onChanged, this.hint, this.spanishRequired = false, this.showSpanish = true});
+  const _Alternates({required this.items, required this.required, required this.original, required this.noun, required this.onChanged, this.hint, this.requiredError = false, this.showRequired = true});
 
   final List<LocalizedText> items;
+  // Idioma del libro cuando no es el inglés del principal.
+  final String? required;
   final OriginalLanguage? original;
   final String noun;
   final String? hint;
-  final bool spanishRequired;
-  final bool showSpanish;
+  final bool requiredError;
+  final bool showRequired;
   final ValueChanged<List<LocalizedText>> onChanged;
 
-  Widget _field(String label, String lang, {bool required = false}) {
+  Widget _field(String label, String lang, {bool needed = false}) {
     final value = localizedText(items, lang);
     final empty = value.trim().isEmpty && hint == null;
     return AppTextField(
@@ -380,25 +394,27 @@ class _Alternates extends StatelessWidget {
       value: value,
       hint: hint,
       floatLabel: hint != null,
-      error: empty && required ? 'Obligatorio' : null,
-      helper: empty && !required ? 'Recomendado' : null,
+      error: empty && needed && requiredError ? 'Obligatorio' : null,
+      helper: empty && needed && !requiredError ? 'Recomendado' : null,
       onChanged: (v) => onChanged(withLocalizedText(items, lang, v)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final required = this.required;
     final original = this.original;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: AppSpacing.medium + AppSpacing.small,
       children: [
-        if (showSpanish) _field('en español', spanishLanguage, required: spanishRequired),
+        if (required != null && showRequired) _field('en ${languageName(required)}', required, needed: true),
+        if (required != spanishLanguage) _field('en español', spanishLanguage),
         if (original != null)
           ResponsiveRow(
             children: [
               _field('en ${original.romanization}', original.romanized),
-              _field('en ${original.label.toLowerCase()}', original.name),
+              if (original.name != required) _field('en ${original.label.toLowerCase()}', original.name),
             ],
           ),
       ],
@@ -633,6 +649,9 @@ class _DateField extends StatefulWidget {
 
 class _DateFieldState extends State<_DateField> {
   final _menu = MenuController();
+  // Preferencia de la aplicación, no de la plantilla: restaurar la plantilla no la cambia.
+  final _preferences = getIt.isRegistered<PreferencesRepository>() ? getIt<PreferencesRepository>() : null;
+  late var _format = _preferences?.getDateFormat() ?? DateDisplayFormat.iso;
 
   @override
   Widget build(BuildContext context) {
@@ -640,6 +659,31 @@ class _DateFieldState extends State<_DateField> {
     return MenuAnchor(
       controller: _menu,
       menuChildren: [
+        SizedBox(
+          width: 320,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppPadding.medium + AppPadding.small, AppPadding.small, AppPadding.small, 0),
+            child: Row(
+              spacing: AppSpacing.medium,
+              children: [
+                Text('Mostrar como', style: Theme.of(context).textTheme.labelLarge),
+                Expanded(
+                  child: DropdownButton<DateDisplayFormat>(
+                    value: _format,
+                    isExpanded: true,
+                    underline: const SizedBox.shrink(),
+                    items: [for (final f in DateDisplayFormat.values) DropdownMenuItem(value: f, child: Text(f.pattern))],
+                    onChanged: (f) {
+                      if (f == null) return;
+                      setState(() => _format = f);
+                      _preferences?.saveDateFormat(f);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         SizedBox(
           width: 320,
           height: 340,
@@ -668,7 +712,7 @@ class _DateFieldState extends State<_DateField> {
             floatingLabelBehavior: widget.floatLabel ? FloatingLabelBehavior.always : null,
             suffixIcon: date == null ? const Icon(Icons.calendar_today, size: 18) : IconButton(tooltip: 'Quitar fecha', icon: const Icon(Icons.close, size: 18), onPressed: () => widget.onChanged('')),
           ),
-          child: Text(date == null ? '' : MaterialLocalizations.of(context).formatMediumDate(date)),
+          child: Text(date == null ? '' : _format.format(date)),
         ),
       ),
     );

@@ -141,11 +141,13 @@ void main() {
     expect(OpfMetadata(opf).write(opf, m, now: DateTime.utc(2026)), contains('<dc:title id="title" xml:lang="en">86 - Volume 01 [ShinsengumiTL]</dc:title>'));
   });
 
-  test('faltan el español y el idioma original; elegido este, su romanización y su escritura', () {
-    expect(missingAlternates(const []), ['en español', 'en el idioma original']);
-    final items = withOriginalLanguage(const [LocalizedText(lang: 'es', text: 'Bruja errante')], OriginalLanguage.ja);
-    expect(missingAlternates(items), ['en romaji', 'en japonés']);
-    expect(missingAlternates(withLocalizedText(withLocalizedText(items, 'ja', '魔女の旅々'), 'ja-Latn', 'Majo no Tabitabi')), isEmpty);
-    expect(withOriginalLanguage(items, null), const [LocalizedText(lang: 'es', text: 'Bruja errante')]);
+  test('el idioma del libro, salvo el inglés del principal, es el equivalente obligatorio', () {
+    expect((requiredAlternate('es'), requiredAlternate('en'), requiredAlternate('ja')), ('es', null, 'ja'));
+    const items = [LocalizedText(lang: 'es', text: 'Bruja errante')];
+    expect((missingRequired(items, 'es'), missingRequired(items, 'en'), missingRequired(items, 'ja')), (false, false, true));
+    expect(languageName('ja'), 'japonés');
+    final original = withOriginalLanguage(items, OriginalLanguage.ja);
+    expect([for (final t in original) t.lang], ['es', 'ja-Latn', 'ja']);
+    expect(withOriginalLanguage(original, null), items);
   });
 }

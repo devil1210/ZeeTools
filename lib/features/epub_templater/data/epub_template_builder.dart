@@ -103,9 +103,8 @@ List<TemplateIssue> templateIssues(TemplateProject project) {
   void add(IssueLevel level, IssueScope scope, String message) => issues.add((level: level, scope: scope, message: message));
 
   if (m.title.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El título es obligatorio.');
-  if (m.title.trim().isNotEmpty && localizedText(m.altTitles, spanishLanguage).trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El título en español es obligatorio.');
-  if (missingAlternates(m.altTitles).where((x) => x != 'en español').toList() case final missing when missing.isNotEmpty) add(IssueLevel.warning, IssueScope.metadata, 'Falta el título ${missing.join(', ')}.');
-  if (m.hasSeries && missingAlternates(m.altSeries).isNotEmpty) add(IssueLevel.warning, IssueScope.metadata, 'Falta la serie ${missingAlternates(m.altSeries).join(', ')}.');
+  if (m.title.trim().isNotEmpty && missingRequired(m.altTitles, m.language)) add(IssueLevel.error, IssueScope.metadata, 'El título en ${languageName(m.language)} es obligatorio.');
+  if (m.hasSeries && missingRequired(m.altSeries, m.language)) add(IssueLevel.warning, IssueScope.metadata, 'Falta la serie en ${languageName(m.language)}.');
   if (m.language.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El idioma es obligatorio.');
   if (m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-13 no es válido.');
   if (m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-10 no es válido.');

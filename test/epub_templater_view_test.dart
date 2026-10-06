@@ -18,6 +18,8 @@ import 'package:zeetools/features/image_optimizer/data/image_optimizer_settings_
 import 'package:zeetools/features/image_optimizer/domain/image_format.dart';
 import 'package:zeetools/features/image_optimizer/domain/optimization_options.dart';
 import 'package:zeetools/features/image_optimizer/domain/optimization_outcome.dart';
+import 'package:zeetools/features/settings/data/preferences_repo.dart';
+import 'package:zeetools/features/settings/domain/date_display_format.dart';
 import 'package:zeetools/inject_dependencies.dart';
 
 class _FakeRepo implements EpubTemplaterRepository {
@@ -180,7 +182,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextFormField, 'Título en romaji'), findsNothing);
 
-    await tester.tap(find.text('Sin definir'));
+    await tester.tap(find.text('Otro o sin indicar'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Japonés').last);
     await tester.pumpAndSettle();
@@ -297,6 +299,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CalendarDatePicker), findsNothing);
     expect(cubit.state.project.metadata.date, endsWith('-15'));
+  });
+
+  testWidgets('la fecha se muestra con el formato elegido, que se guarda como preferencia de la aplicación', (tester) async {
+    final prefs = await SharedPreferences.getInstance();
+    getIt.registerLazySingleton<PreferencesRepository>(() => PreferencesRepositoryImpl(prefs));
+    cubit.updateMetadata((m) => m.copyWith(date: '2013-11-22T00:00:00Z'));
+    await pumpView(tester, size: const Size(1280, 3000));
+    await tester.tap(find.text('Metadatos'));
+    await tester.pumpAndSettle();
+    expect(find.text('2013-11-22'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(InkWell, 'Fecha de publicación'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('YYYY-MM-DD'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('DD/MM/YYYY').last);
+    await tester.pumpAndSettle();
+    expect(find.text('22/11/2013'), findsOneWidget);
+    expect(getIt<PreferencesRepository>().getDateFormat(), DateDisplayFormat.dayMonthSlash);
+    expect(cubit.state.project.metadata.date, '2013-11-22T00:00:00Z');
+  });
+
+  testWidgets('el equivalente obligatorio del título es el del idioma del libro', (tester) async {
+    cubit.updateMetadata((m) => m.copyWith(title: 'Wandering Witch', language: 'ja'));
+    await pumpView(tester, size: const Size(1280, 3000));
+    await tester.tap(find.text('Metadatos'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextFormField, 'Título en japonés'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Título en romaji'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Título en español'), findsOneWidget);
+    expect(find.text('Obligatorio'), findsOneWidget);
+    expect(find.text('Japonés'), findsWidgets);
+
+    cubit.updateMetadata((m) => m.copyWith(language: 'en'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextFormField, 'Título en japonés'), findsNothing);
+    expect(find.text('Obligatorio'), findsNothing);
   });
 
   test('las imágenes se optimizan una vez y el resultado llega a la generación', () async {

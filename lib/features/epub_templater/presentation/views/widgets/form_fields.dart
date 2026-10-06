@@ -9,6 +9,15 @@ const languageSuggestions = {
   'ko': 'Coreano',
 };
 
+// Idiomas en que se publica un libro.
+const bookLanguages = {
+  'es': 'Español',
+  'en': 'Inglés',
+  'ja': 'Japonés',
+  'zh': 'Chino',
+  'ko': 'Coreano',
+};
+
 // Etiqueta de idioma BCP 47 con sugerencias; admite cualquier otra escrita a mano.
 class LanguageField extends StatefulWidget {
   const LanguageField({super.key, required this.label, required this.value, required this.onChanged, this.error, this.hint, this.floatLabel = false, this.enabled = true});
