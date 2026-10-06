@@ -105,6 +105,7 @@ List<TemplateIssue> templateIssues(TemplateProject project) {
   if (m.title.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El título es obligatorio.');
   if (m.title.trim().isNotEmpty && missingRequired(m.altTitles, m.language)) add(IssueLevel.error, IssueScope.metadata, 'El título en ${languageName(m.language)} es obligatorio.');
   if (m.hasSeries && missingRequired(m.altSeries, m.language)) add(IssueLevel.warning, IssueScope.metadata, 'Falta la serie en ${languageName(m.language)}.');
+  if (m.description.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'La sinopsis es obligatoria.');
   if (m.language.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El idioma es obligatorio.');
   if (m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-13 no es válido.');
   if (m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-10 no es válido.');
@@ -573,10 +574,14 @@ class EpubTemplateBuilder {
       previousCreator = role.creator;
       first = false;
     }
+    // Los enlaces de una misma etiqueta van juntos bajo ella, en el orden en que se definieron.
+    final groups = <String, List<String>>{};
     for (final link in m.links.where((l) => l.url.trim().isNotEmpty)) {
-      final url = _esc(link.url.trim());
-      final label = link.label.trim().isEmpty ? '' : '<b>${_esc(link.label.trim())}</b><br/>';
-      b.writeln('      <p class="space-1">$label<a href="$url">$url</a></p>');
+      groups.putIfAbsent(link.label.trim(), () => []).add(_esc(link.url.trim()));
+    }
+    for (final MapEntry(key: label, value: urls) in groups.entries) {
+      final heading = label.isEmpty ? '' : '<b>${_esc(label)}</b><br/>';
+      b.writeln('      <p class="space-1">$heading${urls.map((url) => '<a href="$url">$url</a>').join('<br/>')}</p>');
     }
     b.writeln('    </div>');
   }

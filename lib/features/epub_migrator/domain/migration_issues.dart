@@ -31,7 +31,7 @@ List<MigrationIssue> migrationIssues(MigrationProject project) {
     if (m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10)) _warning('El ISBN-10 no es válido.'),
     if (m.actors.any((a) => a.name.trim().isEmpty)) _warning('Hay personas sin nombre.'),
     if (m.publishers.every((x) => x.trim().isEmpty)) _warning('Sin editorial o grupo.'),
-    if (m.description.trim().isEmpty) _info('Sin sinopsis.'),
+    if (m.description.trim().isEmpty) _warning('Sin sinopsis.'),
     if (m.demographic == null || m.genres.isEmpty) _info('Sin demografía o géneros.'),
     if (project.docs.isEmpty) _error('El libro no tiene documentos en su orden de lectura.'),
     if (project.docs.firstOrNull?.continuation ?? false) _error('El primer documento no puede unirse a uno anterior.', project.docs.first.path),

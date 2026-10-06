@@ -305,6 +305,7 @@ class MetadataForm extends StatelessWidget {
               value: m.description,
               hint: _hint(MetadataField.description),
               floatLabel: _float(MetadataField.description),
+              error: m.description.trim().isEmpty && !mixed.contains(MetadataField.description) ? 'Obligatorio' : null,
               maxLines: 12,
               onChanged: (v) => update((m) => m.copyWith(description: v)),
             ),

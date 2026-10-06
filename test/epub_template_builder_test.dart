@@ -78,6 +78,26 @@ void main() {
     expect(isbn10From13('979-10-90636-07-1'), isNull);
   });
 
+  test('los enlaces de una misma etiqueta van juntos bajo ella, en el orden definido', () {
+    final files = _build(_project(metadata: (m) => m.copyWith(links: const [
+      WebLink(label: 'Redes sociales', url: 'https://x.com/a'),
+      WebLink(label: 'Página Web', url: 'https://grupo.com'),
+      WebLink(label: 'Redes sociales', url: 'https://facebook.com/a'),
+      WebLink(label: 'Redes sociales', url: 'https://discord.gg/a'),
+    ])));
+    final title = files['OEBPS/Text/titulo.xhtml']!;
+    expect(title, contains('<p class="space-1"><b>Redes sociales</b><br/><a href="https://x.com/a">https://x.com/a</a><br/><a href="https://facebook.com/a">https://facebook.com/a</a><br/><a href="https://discord.gg/a">https://discord.gg/a</a></p>'));
+    expect(title.indexOf('Redes sociales'), lessThan(title.indexOf('Página Web')));
+    expect('Redes sociales'.allMatches(title).length, 1);
+  });
+
+  test('la sinopsis es obligatoria y el ISBN pegado con guiones se reordena', () {
+    expect(templateIssues(_project(metadata: (m) => m.copyWith(description: ''))).map((i) => i.message), contains('La sinopsis es obligatoria.'));
+    expect(templateIssues(_project(metadata: (m) => m.copyWith(description: 'Una historia.'))).map((i) => i.message), isNot(contains('La sinopsis es obligatoria.')));
+    expect(formatIsbn('978-4-04-685088-1', isbn13Groups), '978-40-4685-088-1');
+    expect(formatIsbn('4-04-685088-4', isbn10Groups), '40-4685-088-4');
+  });
+
   test('el CSS propio va al final de style.css', () {
     final style = _build(_project().copyWith(customCss: '.carta {\n  font-style: italic;\n}\n'))['OEBPS/Styles/style.css']!;
     expect(style, endsWith('\n.carta {\n  font-style: italic;\n}\n'));

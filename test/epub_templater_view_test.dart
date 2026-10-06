@@ -329,13 +329,12 @@ void main() {
     expect(find.widgetWithText(TextFormField, 'Título en japonés'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Título en romaji'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Título en español'), findsOneWidget);
-    expect(find.text('Obligatorio'), findsOneWidget);
+    expect(find.descendant(of: find.widgetWithText(TextFormField, 'Título en japonés'), matching: find.text('Obligatorio')), findsOneWidget);
     expect(find.text('Japonés'), findsWidgets);
 
     cubit.updateMetadata((m) => m.copyWith(language: 'en'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextFormField, 'Título en japonés'), findsNothing);
-    expect(find.text('Obligatorio'), findsNothing);
   });
 
   test('las imágenes se optimizan una vez y el resultado llega a la generación', () async {
