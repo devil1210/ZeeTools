@@ -575,13 +575,14 @@ class EpubTemplateBuilder {
       first = false;
     }
     // Los enlaces de una misma etiqueta van juntos bajo ella, en el orden en que se definieron.
-    final groups = <String, List<String>>{};
+    final groups = <String, List<WebLink>>{};
     for (final link in m.links.where((l) => l.url.trim().isNotEmpty)) {
-      groups.putIfAbsent(link.label.trim(), () => []).add(_esc(link.url.trim()));
+      groups.putIfAbsent(link.label.trim(), () => []).add(link);
     }
-    for (final MapEntry(key: label, value: urls) in groups.entries) {
+    String anchor(WebLink l) => '<a href="${_esc(l.url.trim())}">${_esc(l.text.trim().isEmpty ? l.url.trim() : l.text.trim())}</a>';
+    for (final MapEntry(key: label, value: links) in groups.entries) {
       final heading = label.isEmpty ? '' : '<b>${_esc(label)}</b><br/>';
-      b.writeln('      <p class="space-1">$heading${urls.map((url) => '<a href="$url">$url</a>').join('<br/>')}</p>');
+      b.writeln('      <p class="space-1">$heading${links.map(anchor).join('<br/>')}</p>');
     }
     b.writeln('    </div>');
   }

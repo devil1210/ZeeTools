@@ -177,6 +177,8 @@ class EpubTemplaterCubit extends Cubit<EpubTemplaterState> {
 
   // ── Perfiles ───────────────────────────────────────────────────────────────
 
+  String get profilesDirectory => _profilesRepo.directory;
+
   // El identificador es propio de cada libro y no viaja en el perfil.
   Future<void> saveProfile(String name) async {
     final trimmed = name.trim();

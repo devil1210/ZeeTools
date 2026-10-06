@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '/common/theme/app_dimensions.dart';
 import '/common/utils/either.dart';
+import '/common/utils/open_external.dart';
 import '/inject_dependencies.dart';
 import '../../../data/amazon_repo.dart';
 import '../../../domain/amazon_book.dart';
@@ -25,6 +26,28 @@ class _AmazonLookupState extends State<AmazonLookup> {
   String? _error;
   bool _loading = false;
   List<String>? _applied;
+
+  @override
+  void initState() {
+    super.initState();
+    _fromCache();
+  }
+
+  @override
+  void didUpdateWidget(AmazonLookup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.asin != widget.asin) _fromCache();
+  }
+
+  // Un ASIN ya consultado muestra su ficha sin volver a pedirla.
+  void _fromCache() {
+    if (!getIt.isRegistered<AmazonRepository>()) return;
+    final cached = getIt<AmazonRepository>().cached(widget.asin);
+    if (cached != null) {
+      _result = cached;
+      _applied = null;
+    }
+  }
 
   Future<void> _lookup() async {
     setState(() {
@@ -56,17 +79,18 @@ class _AmazonLookupState extends State<AmazonLookup> {
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: AppSpacing.medium,
       children: [
-        Row(
-          spacing: AppSpacing.medium,
-          children: [
-            OutlinedButton.icon(
-              icon: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.travel_explore, size: 18),
-              label: const Text('Consultar Amazon Japón'),
-              onPressed: _loading || !amazonAsin.hasMatch(asin) ? null : _lookup,
-            ),
-            if (_error case final error?) Expanded(child: Text(error, style: TextStyle(color: theme.colorScheme.error))),
-          ],
-        ),
+        if (result == null)
+          Row(
+            spacing: AppSpacing.medium,
+            children: [
+              OutlinedButton.icon(
+                icon: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.travel_explore, size: 18),
+                label: const Text('Consultar Amazon Japón'),
+                onPressed: _loading || !amazonAsin.hasMatch(asin) ? null : _lookup,
+              ),
+              if (_error case final error?) Expanded(child: Text(error, style: TextStyle(color: theme.colorScheme.error))),
+            ],
+          ),
         if (result != null) _BookCard(lookup: result, applied: _applied, onApply: () => _apply(result.book)),
       ],
     );
@@ -116,18 +140,19 @@ class _BookCard extends StatelessWidget {
                       ],
                     ),
                   if (!book.missing) ...[
-                    for (final c in book.contributors) line(c.roles.join(', '), c.name),
+                    for (final c in book.contributors) line(c.roles.map(amazonRoleLabel).join(', '), c.name),
                     line('Serie', [book.series, if (book.seriesIndex.isNotEmpty) 'volumen ${book.seriesIndex}'].where((x) => x.isNotEmpty).join(', ')),
                     line('Editorial', book.publisher),
                     line('Publicación', book.date),
                     line('ISBN', [book.isbn13, book.isbn10].where((x) => x.isNotEmpty).join(' · ')),
-                    line('Categoría', book.categories.join(' › ')),
+                    line('Categoría', book.categories.map(amazonCategoryLabel).join(' › ')),
                     const SizedBox(height: AppSpacing.small),
                     Wrap(
                       spacing: AppSpacing.medium,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         FilledButton.tonalIcon(icon: const Icon(Icons.download_done, size: 18), label: const Text('Completar los metadatos'), onPressed: onApply),
+                        OutlinedButton.icon(icon: const Icon(Icons.open_in_new, size: 18), label: const Text('Abrir en Amazon'), onPressed: () => openExternal(amazonUrl(book.asin))),
                         if (applied case final changes?) Text(changes.isEmpty ? 'No había nada que completar.' : 'Completado: ${changes.join(', ')}.'),
                       ],
                     ),

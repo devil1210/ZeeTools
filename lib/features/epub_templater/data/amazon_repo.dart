@@ -24,7 +24,11 @@ typedef AmazonResult = ({AmazonBook book, Uint8List? cover});
 abstract interface class AmazonRepository {
   // La ficha se guarda en disco: el mismo ASIN no vuelve a consultarse.
   Future<Either<String, AmazonResult>> lookup(String asin);
+  // La ficha ya consultada, sin conectarse; null si no está en caché.
+  AmazonResult? cached(String asin);
 }
+
+String amazonUrl(String asin) => '$_host/dp/${asin.trim().toUpperCase()}';
 
 class AmazonRepositoryImpl implements AmazonRepository {
   AmazonRepositoryImpl(this._cacheDir);
@@ -44,7 +48,7 @@ class AmazonRepositoryImpl implements AmazonRepository {
         final paper = book.formats.entries.where((e) => _paper.hasMatch(e.key) && e.value != code).firstOrNull?.value;
         if (paper != null) {
           final edition = await _book(paper);
-          full = book.copyWith(isbn13: edition.isbn13, isbn10: edition.isbn10.isNotEmpty ? edition.isbn10 : (RegExp(r'^\d{9}[\dX]$').hasMatch(paper) ? paper : ''));
+          full = _withPaperIsbn(book, edition, paper);
         }
       }
       return Either.right((book: full, cover: await _cover(code, full.coverUrl)));
@@ -54,6 +58,25 @@ class AmazonRepositoryImpl implements AmazonRepository {
       return Either.left('Sin conexión con Amazon Japón.');
     } catch (e) {
       return Either.left('No se pudo leer la ficha de Amazon: $e');
+    }
+  }
+
+  @override
+  AmazonResult? cached(String asin) {
+    final code = asin.trim().toUpperCase();
+    final json = _cached(code, 'json');
+    if (!amazonAsin.hasMatch(code) || !json.existsSync()) return null;
+    try {
+      var book = AmazonBook.fromJson(jsonDecode(json.readAsStringSync()) as Map<String, dynamic>);
+      final paper = book.formats.entries.where((e) => _paper.hasMatch(e.key) && e.value != code).firstOrNull?.value;
+      final edition = paper == null ? null : _cached(paper, 'json');
+      if (book.isbn13.isEmpty && book.isbn10.isEmpty && edition != null && edition.existsSync()) {
+        book = _withPaperIsbn(book, AmazonBook.fromJson(jsonDecode(edition.readAsStringSync()) as Map<String, dynamic>), paper!);
+      }
+      final cover = _cached(code, 'jpg');
+      return (book: book, cover: cover.existsSync() ? cover.readAsBytesSync() : null);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -125,6 +148,10 @@ class AmazonRepositoryImpl implements AmazonRepository {
     return status >= 300 && status < 400 || status == 200;
   }
 }
+
+// El ISBN de la edición en papel; su ASIN de 10 cifras es el propio ISBN-10.
+AmazonBook _withPaperIsbn(AmazonBook book, AmazonBook edition, String paper) =>
+    book.copyWith(isbn13: edition.isbn13, isbn10: edition.isbn10.isNotEmpty ? edition.isbn10 : (RegExp(r'^\d{9}[\dX]$').hasMatch(paper) ? paper : ''));
 
 class _Blocked implements Exception {
   const _Blocked(this.message);

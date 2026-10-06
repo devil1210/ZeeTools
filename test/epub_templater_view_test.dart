@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -62,7 +64,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     await getIt.reset();
-    profiles = TemplateProfilesRepositoryImpl(prefs);
+    profiles = TemplateProfilesRepositoryImpl(prefs, Directory.systemTemp.createTempSync('perfiles').path);
     repo = _FakeRepo();
     images = _FakeImages();
     cubit = EpubTemplaterCubit(repo, profiles, images, ImageOptimizerSettingsRepositoryImpl(prefs));
@@ -135,6 +137,17 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
     await tester.pumpAndSettle();
     expect(profiles.getProfiles().keys, [EpubTemplaterCubit.allSectionsProfile]);
+  });
+
+  testWidgets('el campo de perfil vacío despliega todos los perfiles al enfocarlo', (tester) async {
+    await pumpView(tester);
+    expect(find.widgetWithText(MenuItemButton, EpubTemplaterCubit.allSectionsProfile), findsNothing);
+    await tester.tap(find.widgetWithText(TextField, 'Perfil de plantilla'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(MenuItemButton, EpubTemplaterCubit.allSectionsProfile));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, EpubTemplaterCubit.allSectionsProfile), findsOneWidget);
+    expect(find.byTooltip('Cargar perfil'), findsOneWidget);
   });
 
   testWidgets('géneros y demografía se marcan y desmarcan', (tester) async {

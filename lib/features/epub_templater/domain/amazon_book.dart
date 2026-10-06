@@ -59,6 +59,51 @@ const _roles = {
   'キャラクター原案': MarcRelator.art,
 };
 
+const _roleLabels = {
+  '著': 'Autor',
+  '作': 'Autor',
+  '著者': 'Autor',
+  '文': 'Autor',
+  'イラスト': 'Ilustrador',
+  '絵': 'Ilustrador',
+  'イラストレーター': 'Ilustrador',
+  '翻訳': 'Traductor',
+  '訳': 'Traductor',
+  '原作': 'Obra original',
+  '原案': 'Idea original',
+  'キャラクター原案': 'Diseño de personajes',
+  '監修': 'Supervisión',
+  '編集': 'Edición',
+  'デザイン': 'Diseño',
+  '漫画': 'Manga',
+  '作画': 'Dibujo',
+  '企画': 'Planificación',
+};
+
+const _categoryLabels = {
+  '本': 'Libros',
+  'Kindleストア': 'Tienda Kindle',
+  'Kindle本': 'Libros Kindle',
+  '洋書': 'Libros extranjeros',
+  'コミック・ラノベ・BL': 'Cómics, novelas ligeras y BL',
+  'ライトノベル': 'Novela ligera',
+  'コミック': 'Cómic',
+  'マンガ': 'Manga',
+  '文学・評論': 'Literatura y crítica',
+  '小説・文芸': 'Novela y literatura',
+  '日本の小説・文芸': 'Novela japonesa',
+  '文芸作品': 'Obras literarias',
+  'ボーイズラブ': 'BL',
+  'ティーンズラブ': 'TL',
+  'ゲーム攻略本': 'Guías de videojuegos',
+  'アニメーション': 'Animación',
+};
+
+// Función o categoría de la ficha en español cuando se conoce; si no, como la escribe Amazon.
+String amazonRoleLabel(String role) => _roleLabels[role] ?? role;
+
+String amazonCategoryLabel(String category) => _categoryLabels[category] ?? category;
+
 final _label = RegExp(r'\s*[（(][^()（）]*(?:文庫版?|ノベルス?|ブックス|BOOKS|Books|ノベル|NOVELS|Novels|文芸)[^()（）]*[)）]\s*');
 final _editionMark = RegExp(r'\s*【[^】]*(?:電子|特典|ＳＳ|SS|[Kk]indle|限定|書き下ろし|付)[^】]*】|\s*電子書籍特典付き$|\s*電子DX版$');
 final _seriesTail = RegExp(r'\s+「[^」]*」シリーズ$');

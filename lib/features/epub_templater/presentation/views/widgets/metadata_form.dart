@@ -282,13 +282,19 @@ class MetadataForm extends StatelessWidget {
                 itemBuilder: (context, link, onChanged, controls) => EditableRow(
                   controls: controls,
                   child: ResponsiveRow(
-                    flex: const [1, 2],
+                    flex: const [1, 1, 2],
                     children: [
                       AppTextField(
                         label: 'Etiqueta',
                         value: link.label,
                         hint: 'Página Web',
                         onChanged: (v) => onChanged(link.copyWith(label: v)),
+                      ),
+                      AppTextField(
+                        label: 'Texto del enlace',
+                        value: link.text,
+                        hint: 'La URL',
+                        onChanged: (v) => onChanged(link.copyWith(text: v)),
                       ),
                       AppTextField(
                         label: 'URL',

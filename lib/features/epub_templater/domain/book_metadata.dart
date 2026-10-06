@@ -46,6 +46,8 @@ abstract class WebLink with _$WebLink {
   const factory WebLink({
     @Default('') String label,
     @Default('') String url,
+    // Lo que se ve del enlace; vacío = la propia URL.
+    @Default('') String text,
   }) = _WebLink;
 
   factory WebLink.fromJson(Map<String, dynamic> json) => _$WebLinkFromJson(json);

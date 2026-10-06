@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zeetools/features/epub_templater/data/amazon_repo.dart';
 import 'package:zeetools/features/epub_templater/domain/amazon_book.dart';
@@ -75,5 +78,22 @@ void main() {
     expect(result.actors.last.altNames, const [LocalizedText(lang: 'ja', text: '弥南せいら')]);
     expect(changes, ['ISBN-13', 'ISBN-10', 'título en japonés', 'serie en japonés', 'autor en japonés']);
     expect(applyAmazon(result, book).$2, isEmpty);
+  });
+
+  test('funciones y categorías conocidas en español; las demás como las escribe Amazon', () {
+    expect(['著', 'イラスト', '原作', '謎'].map(amazonRoleLabel), ['Autor', 'Ilustrador', 'Obra original', '謎']);
+    expect(['本', 'コミック・ラノベ・BL', 'ライトノベル'].map(amazonCategoryLabel), ['Libros', 'Cómics, novelas ligeras y BL', 'Novela ligera']);
+  });
+
+  test('la ficha en caché se lee sin conectarse, con el ISBN de la edición en papel', () {
+    final dir = Directory.systemTemp.createTempSync('amazon');
+    final book = parseAmazonPage('B00GD14MOA', _page);
+    File('${dir.path}/B00GD14MOA.json').writeAsStringSync(jsonEncode(book.toJson()));
+    File('${dir.path}/4040661079.json').writeAsStringSync(jsonEncode(const AmazonBook(asin: '4040661079', isbn13: '9784040661071').toJson()));
+    final repo = AmazonRepositoryImpl(dir.path);
+    final cached = repo.cached('b00gd14moa');
+    expect((cached?.book.isbn13, cached?.book.isbn10), ('9784040661071', '4040661079'));
+    expect(repo.cached('B000000000'), isNull);
+    expect(amazonUrl('b00gd14moa'), 'https://www.amazon.co.jp/dp/B00GD14MOA');
   });
 }
