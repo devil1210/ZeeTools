@@ -34,10 +34,6 @@ const _imageMediaTypes = {
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'jxl', 'svg'];
 
-const _noticeText =
-    'Esta novela contiene material y/o lenguaje que para algunos podría resultar ofensivo, '
-    'explícito y vulgar; si usted es una persona sensible, se recomienda abstenerse de leerla.';
-
 // Tipos que no se repiten como punto de referencia: el cuerpo ya se marca con
 // bodymatter en su primera sección.
 const _nonLandmarkTypes = {'chapter', 'part', 'notice', 'colophon', 'abstract'};
@@ -496,7 +492,7 @@ class EpubTemplateBuilder {
         b
           ..writeln('    <blockquote class="warning">')
           ..writeln('      <p class="large align-center"><b>Advertencia:</b></p>')
-          ..writeln('      <p class="space-0">${_esc(_noticeText)}</p>')
+          ..writeln('      <p class="space-0">${_esc(s.warning.text)}</p>')
           ..writeln('    </blockquote>');
       case SectionLayout.epigraph:
         b

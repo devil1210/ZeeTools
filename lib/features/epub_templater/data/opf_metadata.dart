@@ -139,6 +139,7 @@ void writeOpfMetadata(StringBuffer b, BookMetadata m, {required DateTime now}) {
 
 final _knownSubjects = {
   ...literaryGenres,
+  ...editionFeatures,
   for (final d in Demographic.values) ...[d.label, d.ageGroup],
 };
 
@@ -208,7 +209,7 @@ class OpfMetadata {
     for (final e in _dc('identifier')) {
       if (_identifier(e) case (:final field, :final value)) identifiers.putIfAbsent(field, () => value);
     }
-    final subjects = _dc('subject').map((e) => e.innerText.trim()).toList();
+    final subjects = [for (final e in _dc('subject')) catalogValue(_knownSubjects, e.innerText) ?? e.innerText.trim()];
     final collection = _seriesCollection;
     final rating = double.tryParse(_named('calibre:rating') ?? '');
 
@@ -243,7 +244,9 @@ class OpfMetadata {
         final date when date.startsWith('0101-01-01') => '',
         final date => date,
       },
-      bookType: _dc('type').firstOrNull?.innerText.trim() ?? '',
+      bookType: switch (_dc('type').firstOrNull?.innerText.trim() ?? '') {
+        final type => catalogValue(bookTypes, type) ?? type,
+      },
       description: descriptionFromHtml(_dc('description').firstOrNull?.innerText ?? ''),
       actors: [...actors('creator', MarcRelator.aut), ...actors('contributor', MarcRelator.ctb)],
       publishers: [for (final e in _dc('publisher')) e.innerText.trim()],
@@ -260,6 +263,7 @@ class OpfMetadata {
       seriesIndex: (collection == null ? null : _refined(collection, 'group-position')) ?? _named('calibre:series_index') ?? '1',
       demographic: Demographic.values.where((d) => subjects.contains(d.label)).firstOrNull,
       genres: literaryGenres.where(subjects.contains).toList(),
+      editions: editionFeatures.where(subjects.contains).toList(),
       rating: rating?.round(),
     );
   }
@@ -268,7 +272,7 @@ class OpfMetadata {
     if (e.name.namespaceUri == _dcNs) {
       return switch (e.name.local) {
         final name when _ownedDc.contains(name) => true,
-        'subject' => _knownSubjects.contains(e.innerText.trim()),
+        'subject' => catalogValue(_knownSubjects, e.innerText) != null,
         'identifier' => _identifier(e) != null,
         _ => false,
       };

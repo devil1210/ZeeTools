@@ -262,6 +262,19 @@ class MetadataForm extends StatelessWidget {
                   ),
               ],
             ),
+            label('Edición', MetadataField.editions),
+            Wrap(
+              spacing: AppSpacing.medium,
+              runSpacing: AppSpacing.small,
+              children: [
+                for (final feature in editionFeatures)
+                  SelectionPill(
+                    selected: m.editions.contains(feature),
+                    onTap: () => update((m) => m.copyWith(editions: m.editions.contains(feature) ? ([...m.editions]..remove(feature)) : [...m.editions, feature])),
+                    child: Text(feature),
+                  ),
+              ],
+            ),
             OutlinedDropdown<int?>(
               label: 'Calificación de calibre',
               value: m.rating,

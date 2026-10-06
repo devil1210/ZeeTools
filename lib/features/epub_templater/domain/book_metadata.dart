@@ -63,7 +63,7 @@ abstract class BookMetadata with _$BookMetadata {
     @Default('') String titleSort,
     @Default([]) List<LocalizedText> altTitles,
     @Default('') String date,
-    @Default('Novela Ligera') String bookType,
+    @Default('Novela ligera') String bookType,
     @Default('') String description,
     @Default([]) List<Actor> actors,
     @Default([]) List<String> publishers,
@@ -78,6 +78,7 @@ abstract class BookMetadata with _$BookMetadata {
     @Default('1') String seriesIndex,
     Demographic? demographic,
     @Default([]) List<String> genres,
+    @Default([]) List<String> editions,
     // Escala de calibre: 0–10 (medias estrellas).
     int? rating,
   }) = _BookMetadata;
@@ -100,9 +101,10 @@ extension BookMetadataX on BookMetadata {
   // Sin nombre de serie el libro es un volumen único.
   bool get hasSeries => series.trim().isNotEmpty;
 
-  // Orden: grupo de edad, demografía y géneros en el orden del catálogo.
+  // Orden: grupo de edad, demografía, géneros y edición en el orden del catálogo.
   List<String> get subjects => [
     if (demographic case final d?) ...[d.ageGroup, d.label],
     ...literaryGenres.where(genres.contains),
+    ...editionFeatures.where(editions.contains),
   ];
 }

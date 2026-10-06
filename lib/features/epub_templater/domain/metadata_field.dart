@@ -29,6 +29,7 @@ enum MetadataField {
   seriesIndex,
   demographic,
   genres,
+  editions,
   rating;
 
   Object? read(BookMetadata m) => switch (this) {
@@ -54,6 +55,7 @@ enum MetadataField {
     seriesIndex => m.seriesIndex,
     demographic => m.demographic,
     genres => m.genres,
+    editions => m.editions,
     rating => m.rating,
   };
 
@@ -81,6 +83,7 @@ enum MetadataField {
     seriesIndex => target.copyWith(seriesIndex: source.seriesIndex),
     demographic => target.copyWith(demographic: source.demographic),
     genres => target.copyWith(genres: source.genres),
+    editions => target.copyWith(editions: source.editions),
     rating => target.copyWith(rating: source.rating),
   };
 

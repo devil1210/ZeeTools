@@ -113,4 +113,17 @@ void main() {
     expect(written, contains('<dc:description>Primera línea&lt;br/&gt;Segunda &amp;lt;br&amp;gt; escrita &amp;amp; más</dc:description>'));
     expect(OpfMetadata(written).read().description, text);
   });
+
+  test('tipo y temas del catálogo se leen sin distinguir mayúsculas y se escriben con mayúscula inicial', () {
+    final opf = _legacyOpf.replaceFirst('<dc:subject>Mecha</dc:subject>', '<dc:subject>Sin Censura</dc:subject>\n    <dc:subject>Mecha</dc:subject>');
+    final m = OpfMetadata(opf).read();
+    expect(m.bookType, 'Novela ligera');
+    expect(m.editions, ['Sin censura']);
+
+    final written = OpfMetadata(opf).write(opf, m.copyWith(editions: ['Sin censura', 'A color']), now: DateTime.utc(2026));
+    expect(written, contains('<dc:type>Novela ligera</dc:type>'));
+    expect(written, contains('<dc:subject>Acción</dc:subject>\n    <dc:subject>A color</dc:subject>\n    <dc:subject>Sin censura</dc:subject>'));
+    expect(written, isNot(contains('Sin Censura')));
+    expect(written, contains('<dc:subject>Mecha</dc:subject>'));
+  });
 }

@@ -244,4 +244,10 @@ void main() {
     expect(files['OEBPS/Text/sinopsis.xhtml'], contains('<p>Uno<br/>Dos</p>'));
     expect(files['OEBPS/Text/sinopsis.xhtml'], contains('<p>Tres &lt;br&gt; literal</p>'));
   });
+
+  test('la advertencia escribe el texto del tipo elegido', () {
+    final files = _build(_project(sections: [TemplateSection.of(SectionKind.notice).copyWith(warning: ContentWarning.mature)]));
+    expect(files['OEBPS/Text/advertencia.xhtml'], contains(ContentWarning.mature.text));
+    expect(files['OEBPS/Text/advertencia.xhtml'], isNot(contains(ContentWarning.explicit.text)));
+  });
 }

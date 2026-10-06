@@ -138,6 +138,19 @@ class _SectionForm extends StatelessWidget {
             ),
           ],
         ),
+        if (s.kind.layout == SectionLayout.notice)
+          FormSection(
+            title: 'Advertencia',
+            children: [
+              OutlinedDropdown<ContentWarning>(
+                label: 'Tipo',
+                value: s.warning,
+                helper: s.warning.text,
+                onChanged: (v) => update((s) => s.copyWith(warning: v ?? ContentWarning.explicit)),
+                items: [for (final w in ContentWarning.values) DropdownMenuItem(value: w, child: Text(w.label))],
+              ),
+            ],
+          ),
         FormSection(
           title: 'Índice',
           children: [

@@ -1,7 +1,10 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '/common/utils/uuid_v7.dart';
+import 'content_warning.dart';
 import 'section_kind.dart';
+
+export 'content_warning.dart';
 
 part 'template_section.freezed.dart';
 part 'template_section.g.dart';
@@ -28,6 +31,8 @@ abstract class TemplateSection with _$TemplateSection {
     @Default(true) bool zeepubsLogo,
     @Default(HeadingStyle.text) HeadingStyle headingStyle,
     @Default('') String headingImage,
+    // Solo en la sección de advertencia.
+    @Default(ContentWarning.explicit) ContentWarning warning,
   }) = _TemplateSection;
 
   factory TemplateSection.fromJson(Map<String, dynamic> json) => _$TemplateSectionFromJson(json);
