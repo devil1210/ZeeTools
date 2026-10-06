@@ -8,14 +8,16 @@ enum MarcRelator {
   ant('Obra original', 'Obra original', creator: true),
   cov('Diseñador de cubierta', 'Cubierta'),
   trl('Traductor', 'Traducción'),
-  edt('Editor', 'Edición'),
+  edt('Editor de imágenes', 'Edición de imágenes'),
   pfr('Corrector', 'Corrección'),
   rev('Revisor', 'Revisión'),
   mrk('Maquetador', 'Epub'),
   bkp('Productor del libro', 'Producción'),
   pbl('Editorial', 'Publicación'),
   dst('Distribuidor', 'Distribución'),
-  ctb('Colaborador', 'Colaboración');
+  ctb('Colaborador', 'Colaboración'),
+  // Honoree: a quien el libro agradece su ayuda.
+  hnr('Agradecimiento especial', 'Agradecimientos especiales');
 
   const MarcRelator(this.label, this.credit, {this.creator = false});
 

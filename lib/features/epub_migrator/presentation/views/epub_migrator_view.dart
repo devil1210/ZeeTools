@@ -235,7 +235,6 @@ class _Tabs extends StatelessWidget {
                   key: ValueKey(revision),
                   metadata: context.select((EpubMigratorCubit c) => c.state.project!.metadata),
                   onChanged: cubit.updateMetadata,
-                  showLinks: false,
                 ),
                 StylesTab(key: ValueKey(revision)),
                 const IssuesTab(),

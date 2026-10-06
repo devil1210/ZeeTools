@@ -14,13 +14,7 @@ String xmlEscape(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
 // dc:description es HTML guardado como texto (así lo lee calibre): el texto se escapa y cada salto
 // de línea pasa a <br/>, válido tanto si el lector lo trata como HTML como si lo inserta en XHTML;
 // un «<br>» escrito a mano sigue siendo texto.
-String descriptionToHtml(String text) => text
-    .trim()
-    .replaceAll('\r\n', '\n')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('\n', '<br/>');
+String descriptionToHtml(String text) => text.trim().replaceAll('\r\n', '\n').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', '<br/>');
 
 const _entities = {'amp': '&', 'lt': '<', 'gt': '>', 'quot': '"', 'apos': "'", 'nbsp': '\u00a0'};
 
@@ -29,17 +23,12 @@ const _entities = {'amp': '&', 'lt': '<', 'gt': '>', 'quot': '"', 'apos': "'", '
 final _htmlTag = RegExp(r'</?(p|div|span|b|i|em|strong|u|s|small|big|sup|sub|pre|blockquote|ul|ol|li|table|tbody|thead|tr|td|th|a|font|center)(\s[^>]*)?/?>', caseSensitive: false);
 
 // Inversa de [descriptionToHtml]; también entiende los párrafos <p> de otros editores.
-String descriptionFromHtml(String html) => html
-    .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
-    .replaceAll(RegExp(r'</p>\s*<p[^>]*>', caseSensitive: false), '\n\n')
-    .replaceAll(_htmlTag, '')
-    .replaceAllMapped(RegExp(r'&(#x?[0-9a-fA-F]+|[a-zA-Z]+);'), (m) {
-      final ref = m.group(1)!;
-      if (ref.startsWith('#x') || ref.startsWith('#X')) return String.fromCharCode(int.parse(ref.substring(2), radix: 16));
-      if (ref.startsWith('#')) return String.fromCharCode(int.parse(ref.substring(1)));
-      return _entities[ref] ?? m.group(0)!;
-    })
-    .trim();
+String descriptionFromHtml(String html) => html.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n').replaceAll(RegExp(r'</p>\s*<p[^>]*>', caseSensitive: false), '\n\n').replaceAll(_htmlTag, '').replaceAllMapped(RegExp(r'&(#x?[0-9a-fA-F]+|[a-zA-Z]+);'), (m) {
+  final ref = m.group(1)!;
+  if (ref.startsWith('#x') || ref.startsWith('#X')) return String.fromCharCode(int.parse(ref.substring(2), radix: 16));
+  if (ref.startsWith('#')) return String.fromCharCode(int.parse(ref.substring(1)));
+  return _entities[ref] ?? m.group(0)!;
+}).trim();
 
 final _uuid = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
 
@@ -221,8 +210,7 @@ class OpfMetadata {
           fileAs: _refined(e, 'file-as') ?? e.getAttribute('file-as', namespaceUri: _opfNs)?.trim() ?? '',
           altNames: _alternates(e),
           roles: switch ({
-            for (final code in [..._refinements(e, 'role').map((r) => r.innerText.trim()), ?e.getAttribute('role', namespaceUri: _opfNs)?.trim()])
-              ?MarcRelator.values.where((r) => r.name == code).firstOrNull,
+            for (final code in [..._refinements(e, 'role').map((r) => r.innerText.trim()), ?e.getAttribute('role', namespaceUri: _opfNs)?.trim()]) ?MarcRelator.values.where((r) => r.name == code).firstOrNull,
           }.toList()) {
             final roles when roles.isNotEmpty => roles,
             _ => [fallback],
@@ -234,8 +222,8 @@ class OpfMetadata {
       '' => language,
       final lang => lang,
     };
-    final mainTitle = englishFirst(title?.innerText.trim() ?? '', langOf(title), title == null ? const [] : _alternates(title));
-    final series = englishFirst(collection?.innerText.trim() ?? _named('calibre:series') ?? '', langOf(collection), collection == null ? const [] : _alternates(collection));
+    final mainTitle = mainFirst(title?.innerText.trim() ?? '', langOf(title), title == null ? const [] : _alternates(title));
+    final series = mainFirst(collection?.innerText.trim() ?? _named('calibre:series') ?? '', langOf(collection), collection == null ? const [] : _alternates(collection));
     return BookMetadata(
       identifier: identifiers['identifier'] ?? '',
       language: language,
@@ -252,7 +240,7 @@ class OpfMetadata {
         final type => catalogValue(bookTypes, type) ?? type,
       },
       description: descriptionFromHtml(_dc('description').firstOrNull?.innerText ?? ''),
-      actors: [...actors('creator', MarcRelator.aut), ...actors('contributor', MarcRelator.ctb)],
+      actors: withDefaultSeparators([...actors('creator', MarcRelator.aut), ...actors('contributor', MarcRelator.ctb)]),
       publishers: [for (final e in _dc('publisher')) e.innerText.trim()],
       isbn13: identifiers['isbn13'] ?? '',
       isbn10: identifiers['isbn10'] ?? '',
@@ -262,6 +250,8 @@ class OpfMetadata {
       seriesLang: series.lang,
       altSeries: series.alternates,
       seriesIndex: (collection == null ? null : _refined(collection, 'group-position')) ?? _named('calibre:series_index') ?? '1',
+      standalone: series.text.trim().isEmpty,
+      originalLanguage: originalLanguageOf(mainTitle.alternates) ?? originalLanguageOf(series.alternates),
       demographic: Demographic.values.where((d) => subjects.contains(d.label)).firstOrNull,
       genres: literaryGenres.where(subjects.contains).toList(),
       editions: editionFeatures.where(subjects.contains).toList(),
@@ -297,8 +287,6 @@ class OpfMetadata {
     for (final e in elements) {
       if (!_owned(e, ownedIds)) b.writeln('    ${e.toXmlString()}');
     }
-    return opf
-        .replaceFirstMapped(RegExp(r'(<(?:\w+:)?metadata\b[^>]*>)[\s\S]*?(</(?:\w+:)?metadata>)'), (match) => '${match[1]}$b  ${match[2]}')
-        .replaceFirst(RegExp(r'''unique-identifier\s*=\s*(["'])[^"']*\1'''), 'unique-identifier="BookId"');
+    return opf.replaceFirstMapped(RegExp(r'(<(?:\w+:)?metadata\b[^>]*>)[\s\S]*?(</(?:\w+:)?metadata>)'), (match) => '${match[1]}$b  ${match[2]}').replaceFirst(RegExp(r'''unique-identifier\s*=\s*(["'])[^"']*\1'''), 'unique-identifier="BookId"');
   }
 }

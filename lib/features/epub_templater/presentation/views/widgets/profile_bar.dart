@@ -114,6 +114,19 @@ class _ProfileBarState extends State<ProfileBar> {
             ),
           ),
           IconButton(
+            icon: const Icon(Icons.restart_alt),
+            tooltip: 'Restablecer todo',
+            onPressed: () async {
+              final confirmed = await confirmAction(
+                context,
+                title: 'Restablecer todo',
+                message: 'Las secciones, los metadatos y las fuentes vuelven a los iniciales; se pierde lo que no esté guardado en un perfil.',
+                confirmLabel: 'Restablecer',
+              );
+              if (confirmed) cubit.resetProject();
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.folder_open_outlined),
             tooltip: 'Abrir la carpeta de perfiles',
             onPressed: () async {

@@ -711,6 +711,13 @@ svg {
   /* El lector puede definir sangría para p */
   text-align: right;
 }
+/* La imagen es un bloque centrado con márgenes automáticos: text-align no la mueve */
+.align-left img {
+  margin-left: 0;
+}
+.align-right img {
+  margin-right: 0;
+}
 /* Estilos de fuente */
 .small-caps {
   font-variant: small-caps;

@@ -202,11 +202,6 @@ class EpubTemplaterCubit extends Cubit<EpubTemplaterState> {
     await _profilesRepo.saveProfiles(profiles);
   }
 
-  void resetSections() {
-    final sections = TemplateProject.initial().sections;
-    _setProject(state.project.copyWith(sections: sections), selectedKey: sections.firstOrNull?.key, replaced: true);
-  }
-
   void resetProject() {
     final project = _prepared(TemplateProject.initial());
     _setProject(project, selectedKey: project.sections.firstOrNull?.key, replaced: true);

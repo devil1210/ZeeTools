@@ -36,9 +36,16 @@ TemplateProject _project({BookMetadata Function(BookMetadata m)? metadata, List<
     identifier: uuidV7(),
     title: 'Mitsuba Monogatari - Volumen 03 [KT]',
     titleLang: 'ja-Latn',
-    altTitles: const [LocalizedText(lang: 'ja-Latn', text: 'Repetido'), LocalizedText(lang: 'es', text: 'La Historia de Mitsuba')],
+    altTitles: const [
+      LocalizedText(lang: 'ja-Latn', text: 'Repetido'),
+      LocalizedText(lang: 'es', text: 'La Historia de Mitsuba'),
+    ],
     actors: const [
-      Actor(name: 'Nanasawa Matari', altNames: [LocalizedText(lang: 'ja', text: '七沢またり')], roles: [MarcRelator.aut]),
+      Actor(
+        name: 'Nanasawa Matari',
+        altNames: [LocalizedText(lang: 'ja', text: '七沢またり')],
+        roles: [MarcRelator.aut],
+      ),
       Actor(name: 'EURA', roles: [MarcRelator.ill]),
       Actor(name: 'Rin-san', roles: [MarcRelator.trl, MarcRelator.pfr]),
       Actor(roles: [MarcRelator.mrk]),
@@ -79,18 +86,77 @@ void main() {
   });
 
   test('los enlaces de una misma etiqueta van juntos bajo ella, en el orden definido', () {
-    final files = _build(_project(metadata: (m) => m.copyWith(links: const [
-      WebLink(label: 'Redes sociales', url: 'https://x.com/a'),
-      WebLink(label: 'Página Web', url: 'https://grupo.com'),
-      WebLink(label: 'Redes sociales', url: 'https://facebook.com/a'),
-      WebLink(label: 'Redes sociales', url: 'https://discord.gg/a'),
-      WebLink(label: 'Distribuye', url: 'https://www.facebook.com/ZeePubs', text: 'ZeePubs'),
-    ])));
+    final files = _build(
+      _project(
+        metadata: (m) => m.copyWith(
+          links: const [
+            WebLink(label: 'Redes sociales', url: 'https://x.com/a'),
+            WebLink(label: 'Página Web', url: 'https://grupo.com'),
+            WebLink(label: 'Redes sociales', url: 'https://facebook.com/a'),
+            WebLink(label: 'Redes sociales', url: 'https://discord.gg/a'),
+            WebLink(label: 'Distribuye', url: 'https://www.facebook.com/ZeePubs', text: 'ZeePubs'),
+          ],
+        ),
+      ),
+    );
     final title = files['OEBPS/Text/titulo.xhtml']!;
     expect(title, contains('<p class="space-1"><b>Redes sociales</b><br/><a href="https://x.com/a">https://x.com/a</a><br/><a href="https://facebook.com/a">https://facebook.com/a</a><br/><a href="https://discord.gg/a">https://discord.gg/a</a></p>'));
     expect(title.indexOf('Redes sociales'), lessThan(title.indexOf('Página Web')));
     expect('Redes sociales'.allMatches(title).length, 1);
     expect(title, contains('<a href="https://www.facebook.com/ZeePubs">ZeePubs</a>'));
+  });
+
+  test('créditos en el orden de las personas, con ruby, separadores, traducción y distribución junto al maquetador', () {
+    final files = _build(
+      _project(
+        metadata: (m) => m.copyWith(
+          actors: const [
+            Actor(
+              name: 'Kamachi Kazuma',
+              altNames: [LocalizedText(lang: 'ja', text: '鎌池 和馬')],
+              roles: [MarcRelator.aut],
+            ),
+            Actor(name: 'Haimura Kiyotaka', roles: [MarcRelator.ill], separated: true),
+            Actor(name: 'js06', roles: [MarcRelator.trl], fromLang: 'ja', toLang: 'en'),
+            Actor(name: 'Lestat', roles: [MarcRelator.trl], toLang: 'es'),
+            Actor(name: 'Kaiser', roles: [MarcRelator.pfr]),
+            Actor(name: 'Yen Press', roles: [MarcRelator.edt]),
+            Actor(name: 'Su-chan', roles: [MarcRelator.hnr], separated: true),
+            Actor(name: 'Oculto', roles: [MarcRelator.ctb], credited: false),
+            Actor(name: 'Zack', roles: [MarcRelator.mrk]),
+            Actor(name: 'ZeePubs', roles: [MarcRelator.dst], url: 'https://www.facebook.com/ZeePubs'),
+          ],
+        ),
+      ),
+    );
+    final title = files['OEBPS/Text/titulo.xhtml']!;
+    expect(
+      title,
+      contains('''
+      <p class="space-1"><b>Autor:</b> <ruby>鎌池 和馬<rp>(</rp><rt>Kamachi Kazuma</rt><rp>)</rp></ruby></p>
+      <p><b>Ilustraciones:</b> Haimura Kiyotaka</p>
+      <p class="space-1"><b>Traducción jap-ing:</b> js06</p>
+      <p><b>Traducción al español:</b> Lestat</p>
+      <p><b>Corrección:</b> Kaiser</p>
+      <p><b>Edición de imágenes:</b> Yen Press</p>
+      <p><b>Agradecimientos especiales:</b> Su-chan</p>
+      <p class="space-1"><b>Epub:</b> Zack (<a href="https://www.facebook.com/ZeePubs">ZeePubs</a>)</p>
+'''),
+    );
+    expect(title, isNot(contains('Oculto')));
+    expect(title, contains('<h2 class="subtitle sigil_not_in_toc" role="doc-subtitle">Volumen 03<br/><small>[Novela ligera]</small></h2>'));
+  });
+
+  test('autor, editorial, fecha, demografía, géneros y serie son obligatorios', () {
+    Iterable<String> issues(BookMetadata Function(BookMetadata m) edit) => templateIssues(_project(metadata: edit)).map((i) => i.message);
+    expect(issues((m) => m.copyWith(actors: const [])), contains('El autor es obligatorio.'));
+    expect(issues((m) => m.copyWith(publishers: const [''])), contains('La editorial es obligatoria.'));
+    expect(issues((m) => m.copyWith(date: '')), contains('La fecha de publicación es obligatoria.'));
+    expect(issues((m) => m.copyWith(demographic: null)), contains('La demografía es obligatoria.'));
+    expect(issues((m) => m.copyWith(genres: const [])), contains('Elige al menos un género.'));
+    expect(issues((m) => m.copyWith(series: '')), contains('La serie es obligatoria salvo en un volumen único.'));
+    expect(issues((m) => m.copyWith(series: '', standalone: true)), isNot(contains('La serie es obligatoria salvo en un volumen único.')));
+    expect(issues((m) => m.copyWith(altSeries: const [])), contains('La serie en español es obligatoria.'));
   });
 
   test('la sinopsis es obligatoria y el ISBN pegado con guiones se reordena', () {
@@ -109,7 +175,14 @@ void main() {
     String? issue(TemplateProject p) => templateIssues(p).where((i) => i.message == 'El título en español es obligatorio.').firstOrNull?.message;
     expect(issue(_project()), isNull);
     expect(issue(_project(metadata: (m) => m.copyWith(altTitles: const []))), isNotNull);
-    expect(issue(_project(metadata: (m) => m.copyWith(title: '', altTitles: const []))), isNull);
+    expect(
+      issue(
+        _project(
+          metadata: (m) => m.copyWith(title: '', altTitles: const []),
+        ),
+      ),
+      isNull,
+    );
   });
 
   test('todos los documentos generados son XML bien formado', () {
@@ -142,10 +215,11 @@ void main() {
   });
 
   test('un volumen único no escribe datos de serie', () {
-    final files = _build(_project(metadata: (m) => m.copyWith(series: '')));
+    final files = _build(_project(metadata: (m) => m.copyWith(standalone: true)));
     expect(files['OEBPS/content.opf'], isNot(contains('belongs-to-collection')));
     expect(files['OEBPS/content.opf'], isNot(contains('calibre:series')));
-    expect(files['OEBPS/Text/titulo.xhtml'], contains('Volumen único'));
+    expect(files['OEBPS/Text/titulo.xhtml'], isNot(contains('Volumen')));
+    expect(files['OEBPS/Text/titulo.xhtml'], contains('role="doc-subtitle"><small>[Novela ligera]</small></h2>'));
   });
 
   test('el índice anida los niveles y omite las secciones fuera de él', () {
@@ -175,7 +249,12 @@ void main() {
       TemplateSection.of(SectionKind.illustrations).copyWith(images: ['C:/img/02.png', 'C:/img/03.png']),
       TemplateSection.of(SectionKind.colophon),
     ];
-    final files = _build(_project(sections: sections), images: {for (final p in ['C:/img/portada final.png', 'C:/img/02.png', 'C:/img/03.png']) p: _png});
+    final files = _build(
+      _project(sections: sections),
+      images: {
+        for (final p in ['C:/img/portada final.png', 'C:/img/02.png', 'C:/img/03.png']) p: _png,
+      },
+    );
     expect(files.keys, containsAll(['OEBPS/Text/resumen.xhtml', 'OEBPS/Text/resumen_0001.xhtml', 'OEBPS/Images/cover.png', 'OEBPS/Images/02.png', 'OEBPS/Images/zeepubs.png']));
     final opf = files['OEBPS/content.opf']!;
     expect(opf, contains('<item id="cover.png" href="Images/cover.png" media-type="image/png" properties="cover-image"/>'));
@@ -189,7 +268,12 @@ void main() {
       TemplateSection.of(SectionKind.chapter, number: 2).copyWith(headingStyle: HeadingStyle.imageTitle, headingImage: 'C:/img/10.png'),
       TemplateSection.of(SectionKind.chapter, number: 3).copyWith(headingStyle: HeadingStyle.imageBefore, headingImage: 'C:/img/star.png'),
     ];
-    final files = _build(_project(sections: sections), images: {for (final n in ['05', '10', 'star']) 'C:/img/$n.png': _png});
+    final files = _build(
+      _project(sections: sections),
+      images: {
+        for (final n in ['05', '10', 'star']) 'C:/img/$n.png': _png,
+      },
+    );
 
     final separator = XmlDocument.parse(files['OEBPS/Text/capitulo01.xhtml']!);
     final hidden = separator.findAllElements('h1').single;
@@ -266,7 +350,12 @@ void main() {
 
   test('templateIssues detecta archivos repetidos y título vacío', () {
     final sections = [TemplateSection.of(SectionKind.chapter), TemplateSection.of(SectionKind.chapter)];
-    final issues = templateIssues(_project(metadata: (m) => m.copyWith(title: ' '), sections: sections));
+    final issues = templateIssues(
+      _project(
+        metadata: (m) => m.copyWith(title: ' '),
+        sections: sections,
+      ),
+    );
     expect(issues.where((i) => i.level == IssueLevel.error).map((i) => i.message), containsAll(['El título es obligatorio.', 'El archivo «capitulo01» está repetido.']));
   });
 
@@ -281,10 +370,12 @@ void main() {
   });
 
   test('la sinopsis separa párrafos por líneas en blanco y usa <br/> en los saltos simples', () {
-    final files = _build(_project(
-      metadata: (m) => m.copyWith(description: 'Uno\nDos\n\nTres <br> literal'),
-      sections: [TemplateSection.of(SectionKind.synopsis)],
-    ));
+    final files = _build(
+      _project(
+        metadata: (m) => m.copyWith(description: 'Uno\nDos\n\nTres <br> literal'),
+        sections: [TemplateSection.of(SectionKind.synopsis)],
+      ),
+    );
     expect(files['OEBPS/Text/sinopsis.xhtml'], contains('<p>Uno<br/>Dos</p>'));
     expect(files['OEBPS/Text/sinopsis.xhtml'], contains('<p>Tres &lt;br&gt; literal</p>'));
   });

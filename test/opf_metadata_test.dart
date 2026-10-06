@@ -54,7 +54,14 @@ void main() {
     expect(m.title, '86 - Volumen 01 [ShinsengumiTL]');
     expect(m.date, '2017-02-10T00:00:00Z');
     expect(m.actors, [
-      const Actor(name: 'Asato Asato', fileAs: 'Asato, Asato', altNames: [LocalizedText(lang: 'ja', text: '安里 アサト')], roles: [MarcRelator.aut]),
+      // Sin separadores guardados, una línea en blanco tras el último creador.
+      const Actor(
+        name: 'Asato Asato',
+        fileAs: 'Asato, Asato',
+        altNames: [LocalizedText(lang: 'ja', text: '安里 アサト')],
+        roles: [MarcRelator.aut],
+        separated: true,
+      ),
       const Actor(name: 'Meraru', roles: [MarcRelator.trl]),
     ]);
     expect(m.demographic, Demographic.seinen);

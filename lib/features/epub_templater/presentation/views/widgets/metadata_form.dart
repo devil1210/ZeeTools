@@ -10,6 +10,7 @@ import '/common/widgets/outlined_dropdown.dart';
 import '/common/widgets/responsive_row.dart';
 import '/common/widgets/selection_pill.dart';
 import '/common/widgets/tag_pill.dart';
+import '/common/widgets/toggle_field.dart';
 import '/features/settings/data/preferences_repo.dart';
 import '/features/settings/domain/date_display_format.dart';
 import '/inject_dependencies.dart';
@@ -29,14 +30,15 @@ const noValueHint = 'Sin valor';
 // solo se aplican a todos si se les da un valor. Con [multiple], los campos que
 // ningún libro tiene se señalan como vacíos en todos.
 class MetadataForm extends StatelessWidget {
-  const MetadataForm({super.key, required this.metadata, required this.onChanged, this.mixed = const {}, this.multiple = false, this.onRegenerateIdentifier, this.showLinks = true});
+  const MetadataForm({super.key, required this.metadata, required this.onChanged, this.mixed = const {}, this.multiple = false, this.onRegenerateIdentifier, this.showCredits = false});
 
   final BookMetadata metadata;
   final ValueChanged<BookMetadata Function(BookMetadata m)> onChanged;
   final Set<MetadataField> mixed;
   final bool multiple;
   final VoidCallback? onRegenerateIdentifier;
-  final bool showLinks;
+  // La plantilla tiene página de título: se editan sus créditos y enlaces.
+  final bool showCredits;
 
   String? _status(MetadataField field) {
     if (mixed.contains(field)) return mixedValuesHint;
@@ -58,10 +60,21 @@ class MetadataForm extends StatelessWidget {
     final m = metadata;
     final update = onChanged;
     final hasSeries = m.hasSeries || mixed.contains(MetadataField.series);
-    final required = requiredAlternate(m.language);
-    final bookOriginal = OriginalLanguage.values.where((o) => o.name == required).firstOrNull;
-    final original = bookOriginal ?? originalLanguageOf(m.altTitles) ?? originalLanguageOf(m.altSeries);
-    Widget label(String text, MetadataField field) => Text([text, ?_status(field)].join(' · '), style: Theme.of(context).textTheme.labelLarge);
+    final bookOriginal = scriptedLanguages.where((o) => o.name == m.language.trim().toLowerCase().split('-').first).firstOrNull;
+    final original = bookOriginal ?? m.original;
+    final main = original?.mainLanguage ?? mainTitleLanguage;
+    final required = requiredAlternate(m.language, main: main);
+    final separators = m.actors.where((a) => a.separated).length;
+    final textTheme = Theme.of(context).textTheme;
+    final errorColor = Theme.of(context).colorScheme.error;
+    // [error] solo se muestra cuando el campo no está mezclado ni vacío en varios libros.
+    Widget label(String text, MetadataField field, {String? error}) {
+      final status = _status(field);
+      return Text(
+        [text, status ?? error].nonNulls.join(' · '),
+        style: textTheme.labelLarge?.copyWith(color: status == null && error != null ? errorColor : null),
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppPadding.large, AppPadding.large, AppPadding.large, 96),
@@ -85,13 +98,15 @@ class MetadataForm extends StatelessWidget {
                   floatLabel: _float(MetadataField.isbn13),
                   inputFormatters: [isbnFormatter(isbn13Groups)],
                   error: m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13) ? 'ISBN-13 no válido' : null,
-                  onChanged: (v) => update((m) => m.copyWith(
-                    isbn13: v,
-                    isbn10: switch (isbn10From13(v)) {
-                      final ten? when m.isbn10.trim().isEmpty => formatIsbn(ten, isbn10Groups),
-                      _ => m.isbn10,
-                    },
-                  )),
+                  onChanged: (v) => update(
+                    (m) => m.copyWith(
+                      isbn13: v,
+                      isbn10: switch (isbn10From13(v)) {
+                        final ten? when m.isbn10.trim().isEmpty => formatIsbn(ten, isbn10Groups),
+                        _ => m.isbn10,
+                      },
+                    ),
+                  ),
                 ),
                 AppTextField(
                   label: 'ISBN-10',
@@ -100,13 +115,15 @@ class MetadataForm extends StatelessWidget {
                   floatLabel: _float(MetadataField.isbn10),
                   inputFormatters: [isbnFormatter(isbn10Groups)],
                   error: m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10) ? 'ISBN-10 no válido' : null,
-                  onChanged: (v) => update((m) => m.copyWith(
-                    isbn10: v,
-                    isbn13: switch (isbn13From10(v)) {
-                      final thirteen? when m.isbn13.trim().isEmpty => formatIsbn(thirteen, isbn13Groups),
-                      _ => m.isbn13,
-                    },
-                  )),
+                  onChanged: (v) => update(
+                    (m) => m.copyWith(
+                      isbn10: v,
+                      isbn13: switch (isbn13From10(v)) {
+                        final thirteen? when m.isbn13.trim().isEmpty => formatIsbn(thirteen, isbn13Groups),
+                        _ => m.isbn13,
+                      },
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -145,13 +162,33 @@ class MetadataForm extends StatelessWidget {
         FormSection(
           title: 'Título y serie',
           children: [
+            OutlinedDropdown<OriginalLanguage?>(
+              label: 'Idioma en que se escribió la obra',
+              value: original,
+              hint: _hint(MetadataField.originalLanguage),
+              floatLabel: _float(MetadataField.originalLanguage),
+              helper: bookOriginal != null
+                  ? 'El del libro.'
+                  : switch (original) {
+                      OriginalLanguage.es => 'El título y la serie principales van en español; en inglés son opcionales.',
+                      OriginalLanguage(scripted: true) => 'Añade el título y la serie romanizados y en su escritura.',
+                      _ => null,
+                    },
+              onChanged: bookOriginal != null
+                  ? null
+                  : (v) {
+                      if (v != null) update((m) => m.withOriginal(v));
+                    },
+              items: [for (final o in OriginalLanguage.values) DropdownMenuItem(value: o, child: Text(o.label))],
+            ),
             AppTextField(
-              label: 'Título en inglés',
+              key: ValueKey('title-$main'),
+              label: 'Título en ${languageName(main)}',
               value: m.title,
               hint: _hint(MetadataField.title, 'Nombre de la novela - Volumen 01 [SIGLAS]'),
               floatLabel: _float(MetadataField.title),
               error: m.title.trim().isEmpty && !mixed.contains(MetadataField.title) ? 'Obligatorio' : null,
-              onChanged: (v) => update((m) => m.copyWith(title: v, titleLang: mainTitleLanguage)),
+              onChanged: (v) => update((m) => m.copyWith(title: v, titleLang: main)),
             ),
             _TitleSortField(
               value: m.titleSort,
@@ -161,6 +198,7 @@ class MetadataForm extends StatelessWidget {
             if (m.title.trim().isNotEmpty || mixed.contains(MetadataField.title) || original != null)
               _Alternates(
                 items: m.altTitles,
+                main: main,
                 required: required,
                 original: original,
                 noun: 'Título',
@@ -169,51 +207,52 @@ class MetadataForm extends StatelessWidget {
                 showRequired: m.title.trim().isNotEmpty || mixed.contains(MetadataField.title),
                 onChanged: (v) => update((m) => m.copyWith(altTitles: v)),
               ),
-            OutlinedDropdown<OriginalLanguage?>(
-              label: 'Idioma en que se escribió la obra',
-              value: original,
-              helper: bookOriginal != null ? 'El del libro.' : 'Opcional: añade el título y la serie romanizados y en su escritura.',
-              onChanged: bookOriginal != null ? null : (v) => update((m) => m.copyWith(altTitles: withOriginalLanguage(m.altTitles, v), altSeries: m.hasSeries ? withOriginalLanguage(m.altSeries, v) : m.altSeries)),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Otro o sin indicar')),
-                for (final o in OriginalLanguage.values) DropdownMenuItem(value: o, child: Text(o.label)),
-              ],
+            ToggleField(
+              label: 'Volumen único',
+              value: m.standalone,
+              helper: mixed.contains(MetadataField.standalone) ? mixedValuesHint : 'No pertenece a ninguna serie: no lleva serie ni número de volumen.',
+              onChanged: (v) => update((m) => m.copyWith(standalone: v)),
             ),
-            ResponsiveRow(
-              widths: const [null, numberColumnWidth],
-              children: [
-                AppTextField(
-                  label: 'Serie en inglés',
-                  value: m.series,
-                  hint: _hint(MetadataField.series),
-                  floatLabel: _float(MetadataField.series),
-                  onChanged: (v) => update((m) => m.copyWith(series: v, seriesLang: mainTitleLanguage, altSeries: m.hasSeries ? m.altSeries : withOriginalLanguage(m.altSeries, original))),
-                ),
-                AppTextField(
-                  label: 'Volumen',
-                  value: m.seriesIndex,
-                  hint: _hint(MetadataField.seriesIndex),
-                  floatLabel: _float(MetadataField.seriesIndex),
-                  enabled: hasSeries,
-                  inputFormatters: [decimalNumberFormatter],
-                  error: switch (m.seriesIndex.trim()) {
-                    _ when !hasSeries => null,
-                    '' when mixed.contains(MetadataField.seriesIndex) => null,
-                    '' => 'Obligatorio',
-                    final index when double.tryParse(index) == null => 'No es un número',
-                    _ => null,
-                  },
-                  onChanged: (v) => update((m) => m.copyWith(seriesIndex: v)),
-                ),
-              ],
-            ),
+            if (!m.standalone || mixed.contains(MetadataField.standalone))
+              ResponsiveRow(
+                widths: const [null, numberColumnWidth],
+                children: [
+                  AppTextField(
+                    key: ValueKey('series-$main'),
+                    label: 'Serie en ${languageName(main)}',
+                    value: m.series,
+                    hint: _hint(MetadataField.series),
+                    floatLabel: _float(MetadataField.series),
+                    error: m.series.trim().isEmpty && !mixed.contains(MetadataField.series) && !mixed.contains(MetadataField.standalone) ? 'Obligatoria salvo en un volumen único' : null,
+                    onChanged: (v) => update((m) => m.copyWith(series: v, seriesLang: main, altSeries: m.series.trim().isNotEmpty ? m.altSeries : withOriginalLanguage(m.altSeries, original))),
+                  ),
+                  AppTextField(
+                    label: 'Volumen',
+                    value: m.seriesIndex,
+                    hint: _hint(MetadataField.seriesIndex),
+                    floatLabel: _float(MetadataField.seriesIndex),
+                    enabled: hasSeries,
+                    inputFormatters: [decimalNumberFormatter],
+                    error: switch (m.seriesIndex.trim()) {
+                      _ when !hasSeries => null,
+                      '' when mixed.contains(MetadataField.seriesIndex) => null,
+                      '' => 'Obligatorio',
+                      final index when double.tryParse(index) == null => 'No es un número',
+                      _ => null,
+                    },
+                    onChanged: (v) => update((m) => m.copyWith(seriesIndex: v)),
+                  ),
+                ],
+              ),
             if (hasSeries)
               _Alternates(
                 items: m.altSeries,
+                main: main,
                 required: required,
                 original: original,
                 noun: 'Serie',
                 hint: _hint(MetadataField.altSeries),
+                requiredError: !mixed.contains(MetadataField.altSeries),
                 onChanged: (v) => update((m) => m.copyWith(altSeries: v)),
               ),
           ],
@@ -221,13 +260,20 @@ class MetadataForm extends StatelessWidget {
         FormSection(
           title: 'Personas',
           children: [
-            if (mixed.contains(MetadataField.actors)) label('Las personas que añadas sustituyen a las de cada libro', MetadataField.actors),
+            if (mixed.contains(MetadataField.actors)) label('Las personas que añadas sustituyen a las de cada libro', MetadataField.actors) else if (!m.hasAuthor) Text('El autor es obligatorio.', style: textTheme.labelLarge?.copyWith(color: errorColor)),
             EditableList<Actor>(
               items: m.actors,
               addLabel: 'Añadir persona',
               createItem: () => const Actor(roles: [MarcRelator.ctb]),
               onChanged: (v) => update((m) => m.copyWith(actors: v)),
-              itemBuilder: (context, actor, onChanged, controls) => _ActorEditor(actor: actor, onChanged: onChanged, controls: controls),
+              itemBuilder: (context, actor, onChanged, controls) => _ActorEditor(
+                actor: actor,
+                onChanged: onChanged,
+                controls: controls,
+                showCredits: showCredits,
+                canSeparate: actor.separated || separators < maxCreditSeparators,
+                defaultScript: original != null && original.scripted ? original : OriginalLanguage.ja,
+              ),
             ),
           ],
         ),
@@ -257,11 +303,12 @@ class MetadataForm extends StatelessWidget {
                   value: m.date,
                   hint: _hint(MetadataField.date),
                   floatLabel: _float(MetadataField.date),
+                  error: m.date.trim().isEmpty && !mixed.contains(MetadataField.date) ? 'Obligatoria' : null,
                   onChanged: (v) => update((m) => m.copyWith(date: v)),
                 ),
               ],
             ),
-            label('Editorial o grupo', MetadataField.publishers),
+            label('Editorial o grupo', MetadataField.publishers, error: m.hasPublisher ? null : 'Obligatoria'),
             EditableList<String>(
               items: m.publishers,
               addLabel: 'Añadir editorial',
@@ -272,7 +319,7 @@ class MetadataForm extends StatelessWidget {
                 child: AppTextField(label: 'Nombre', value: publisher, onChanged: onChanged),
               ),
             ),
-            if (showLinks) ...[
+            if (showCredits) ...[
               label('Enlaces en la página de título', MetadataField.links),
               EditableList<WebLink>(
                 items: m.links,
@@ -320,7 +367,7 @@ class MetadataForm extends StatelessWidget {
         FormSection(
           title: 'Clasificación',
           children: [
-            label('Demografía', MetadataField.demographic),
+            label('Demografía', MetadataField.demographic, error: m.demographic == null ? 'Obligatoria' : null),
             Wrap(
               spacing: AppSpacing.medium,
               runSpacing: AppSpacing.small,
@@ -334,7 +381,7 @@ class MetadataForm extends StatelessWidget {
                   ),
               ],
             ),
-            label('Géneros', MetadataField.genres),
+            label('Géneros', MetadataField.genres, error: m.genres.isEmpty ? 'Elige al menos uno' : null),
             Wrap(
               spacing: AppSpacing.medium,
               runSpacing: AppSpacing.small,
@@ -377,14 +424,16 @@ class MetadataForm extends StatelessWidget {
   }
 }
 
-// Equivalentes de un título o serie: el del idioma del libro (obligatorio en el
-// título, recomendado en la serie), el español y, si se eligió, el idioma en
-// que se escribió la obra, romanizado y en su escritura.
+// Equivalentes de un título o serie: el del idioma del libro (obligatorio), el español y el
+// inglés cuando no son el principal y, si la obra se escribió en japonés, coreano o chino, el
+// romanizado y el de su escritura.
 class _Alternates extends StatelessWidget {
-  const _Alternates({required this.items, required this.required, required this.original, required this.noun, required this.onChanged, this.hint, this.requiredError = false, this.showRequired = true});
+  const _Alternates({required this.items, required this.main, required this.required, required this.original, required this.noun, required this.onChanged, this.hint, this.requiredError = false, this.showRequired = true});
 
   final List<LocalizedText> items;
-  // Idioma del libro cuando no es el inglés del principal.
+  // Idioma del principal.
+  final String main;
+  // Idioma del libro cuando no es el del principal.
   final String? required;
   final OriginalLanguage? original;
   final String noun;
@@ -397,12 +446,12 @@ class _Alternates extends StatelessWidget {
     final value = localizedText(items, lang);
     final empty = value.trim().isEmpty && hint == null;
     return AppTextField(
+      key: ValueKey('$noun-$lang'),
       label: '$noun $label',
       value: value,
       hint: hint,
       floatLabel: hint != null,
       error: empty && needed && requiredError ? 'Obligatorio' : null,
-      helper: empty && needed && !requiredError ? 'Recomendado' : null,
       onChanged: (v) => onChanged(withLocalizedText(items, lang, v)),
     );
   }
@@ -416,8 +465,9 @@ class _Alternates extends StatelessWidget {
       spacing: AppSpacing.medium + AppSpacing.small,
       children: [
         if (required != null && showRequired) _field('en ${languageName(required)}', required, needed: true),
-        if (required != spanishLanguage) _field('en español', spanishLanguage),
-        if (original != null)
+        for (final lang in const [spanishLanguage, mainTitleLanguage])
+          if (lang != main && lang != required) _field('en ${languageName(lang)}', lang),
+        if (original != null && original.scripted)
           ResponsiveRow(
             children: [
               _field('en ${original.romanization}', original.romanized),
@@ -425,52 +475,6 @@ class _Alternates extends StatelessWidget {
             ],
           ),
       ],
-    );
-  }
-}
-
-// [taken] es el idioma de la propiedad principal; ningún equivalente puede repetirlo.
-class _LocalizedTexts extends StatelessWidget {
-  const _LocalizedTexts({required this.items, required this.taken, required this.textLabel, required this.addLabel, required this.onChanged});
-
-  final List<LocalizedText> items;
-  final String taken;
-  final String textLabel;
-  final String addLabel;
-  final ValueChanged<List<LocalizedText>> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    String key(String lang) => lang.trim().toLowerCase();
-    final counts = <String, int>{key(taken): 1};
-    for (final t in items) {
-      counts.update(key(t.lang), (n) => n + 1, ifAbsent: () => 1);
-    }
-    return EditableList<LocalizedText>(
-      items: items,
-      addLabel: addLabel,
-      reorderable: false,
-      createItem: () => const LocalizedText(),
-      onChanged: onChanged,
-      itemBuilder: (context, t, update, controls) => EditableRow(
-        controls: controls,
-        child: ResponsiveRow(
-          widths: const [languageColumnWidth, null],
-          children: [
-            LanguageField(
-              label: 'Idioma',
-              value: t.lang,
-              error: key(t.lang).isNotEmpty && counts[key(t.lang)]! > 1 ? 'Idioma repetido' : null,
-              onChanged: (v) => update(t.copyWith(lang: v.trim())),
-            ),
-            AppTextField(
-              label: textLabel,
-              value: t.text,
-              onChanged: (v) => update(t.copyWith(text: v)),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -521,11 +525,16 @@ class _TitleSortFieldState extends State<_TitleSortField> {
 }
 
 class _ActorEditor extends StatefulWidget {
-  const _ActorEditor({required this.actor, required this.onChanged, required this.controls});
+  const _ActorEditor({required this.actor, required this.onChanged, required this.controls, required this.showCredits, required this.canSeparate, required this.defaultScript});
 
   final Actor actor;
   final ValueChanged<Actor> onChanged;
   final Widget controls;
+  final bool showCredits;
+  // Los créditos admiten como mucho [maxCreditSeparators] líneas en blanco.
+  final bool canSeparate;
+  // Escritura que se propone mientras la persona no tiene nombre en una.
+  final OriginalLanguage defaultScript;
 
   @override
   State<_ActorEditor> createState() => _ActorEditorState();
@@ -533,6 +542,7 @@ class _ActorEditor extends StatefulWidget {
 
 class _ActorEditorState extends State<_ActorEditor> {
   late final _fileAs = TextEditingController(text: widget.actor.fileAs);
+  late var _script = scriptedLanguages.where((o) => o.name == widget.actor.scriptName?.lang.trim().toLowerCase()).firstOrNull ?? widget.defaultScript;
 
   @override
   void dispose() {
@@ -549,9 +559,19 @@ class _ActorEditorState extends State<_ActorEditor> {
     widget.onChanged(actor.copyWith(name: name, fileAs: fileAs));
   }
 
+  void _onScriptChanged(OriginalLanguage script, String text) {
+    setState(() => _script = script);
+    widget.onChanged(
+      widget.actor.copyWith(
+        altNames: text.trim().isEmpty ? const [] : [LocalizedText(lang: script.name, text: text)],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final actor = widget.actor;
+    final scriptText = actor.scriptName?.text ?? '';
     return Card.outlined(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -603,13 +623,71 @@ class _ActorEditorState extends State<_ActorEditor> {
                 ),
               ],
             ),
-            _LocalizedTexts(
-              items: actor.altNames,
-              taken: '',
-              textLabel: 'Nombre',
-              addLabel: 'Añadir nombre en otro idioma',
-              onChanged: (v) => widget.onChanged(actor.copyWith(altNames: v)),
+            ResponsiveRow(
+              widths: const [languageColumnWidth, null],
+              children: [
+                OutlinedDropdown<OriginalLanguage>(
+                  label: 'Escritura original',
+                  value: _script,
+                  onChanged: (v) => v == null ? null : _onScriptChanged(v, scriptText),
+                  items: [for (final o in scriptedLanguages) DropdownMenuItem(value: o, child: Text(o.label))],
+                ),
+                AppTextField(
+                  label: 'Nombre en ${_script.label.toLowerCase()}',
+                  value: scriptText,
+                  helper: 'Opcional. En los créditos va como ruby sobre el nombre.',
+                  onChanged: (v) => _onScriptChanged(_script, v),
+                ),
+              ],
             ),
+            if (actor.isTranslator)
+              ResponsiveRow(
+                children: [
+                  OutlinedDropdown<String>(
+                    label: 'Traducido del',
+                    value: actor.fromLang,
+                    onChanged: (v) => widget.onChanged(actor.copyWith(fromLang: v ?? '')),
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('No se menciona')),
+                      for (final MapEntry(key: code, value: name) in bookLanguages.entries) DropdownMenuItem(value: code, child: Text(name)),
+                    ],
+                  ),
+                  OutlinedDropdown<String>(
+                    label: 'Traducido al',
+                    value: actor.toLang,
+                    helper: 'En los créditos: «${translationCredit(actor)}».',
+                    onChanged: (v) => widget.onChanged(actor.copyWith(toLang: v ?? '')),
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('No se menciona')),
+                      for (final MapEntry(key: code, value: name) in bookLanguages.entries) DropdownMenuItem(value: code, child: Text(name)),
+                    ],
+                  ),
+                ],
+              ),
+            if (widget.showCredits)
+              ResponsiveRow(
+                flex: const [1, 1, 2],
+                children: [
+                  ToggleField(
+                    label: 'En los créditos',
+                    value: actor.credited,
+                    helper: actor.roles.contains(MarcRelator.dst) ? 'Entre paréntesis tras el maquetador.' : null,
+                    onChanged: (v) => widget.onChanged(actor.copyWith(credited: v)),
+                  ),
+                  ToggleField(
+                    label: 'Línea en blanco después',
+                    value: actor.separated,
+                    helper: widget.canSeparate ? null : 'Ya hay $maxCreditSeparators.',
+                    onChanged: actor.credited && widget.canSeparate ? (v) => widget.onChanged(actor.copyWith(separated: v)) : null,
+                  ),
+                  AppTextField(
+                    label: 'Enlace',
+                    value: actor.url,
+                    hint: 'https://www.facebook.com/…',
+                    onChanged: (v) => widget.onChanged(actor.copyWith(url: v.trim())),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
@@ -643,11 +721,12 @@ class _BookTypeField extends StatelessWidget {
 
 // Solo se elige desde el calendario, que se despliega bajo el campo.
 class _DateField extends StatefulWidget {
-  const _DateField({required this.value, required this.onChanged, this.hint, this.floatLabel = false});
+  const _DateField({required this.value, required this.onChanged, this.hint, this.floatLabel = false, this.error});
 
   final String value;
   final String? hint;
   final bool floatLabel;
+  final String? error;
   final ValueChanged<String> onChanged;
 
   @override
@@ -717,6 +796,7 @@ class _DateFieldState extends State<_DateField> {
             labelText: 'Fecha de publicación',
             hintText: widget.hint,
             floatingLabelBehavior: widget.floatLabel ? FloatingLabelBehavior.always : null,
+            errorText: widget.error,
             suffixIcon: date == null ? const Icon(Icons.calendar_today, size: 18) : IconButton(tooltip: 'Quitar fecha', icon: const Icon(Icons.close, size: 18), onPressed: () => widget.onChanged('')),
           ),
           child: Text(date == null ? '' : _format.format(date)),

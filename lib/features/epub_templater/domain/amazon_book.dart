@@ -131,8 +131,7 @@ extension AmazonBookX on AmazonBook {
   // Edición japonesa (no la inglesa que también vende Amazon Japón) y de novela, no de manga.
   List<String> get problems => [
     if (missing) 'El ASIN no existe en Amazon Japón.',
-    if (!missing && (categories.any((c) => c.contains('洋書')) || (language.isNotEmpty && !language.contains('日本語')) || !_cjk.hasMatch(title)))
-      'La ficha no es de la edición japonesa.',
+    if (!missing && (categories.any((c) => c.contains('洋書')) || (language.isNotEmpty && !language.contains('日本語')) || !_cjk.hasMatch(title))) 'La ficha no es de la edición japonesa.',
     if (!missing && categories.isNotEmpty && RegExp(r'コミック|マンガ|漫画').hasMatch(categories.last)) 'La ficha es de un manga, no de la novela.',
   ];
 
@@ -155,7 +154,7 @@ extension AmazonBookX on AmazonBook {
 
   final title = nativeTitle(book.title);
   if (_cjk.hasMatch(title)) {
-    final original = originalLanguageOf(result.altTitles) ?? originalLanguageOf(result.altSeries);
+    final original = result.original;
     if (original == null || original == OriginalLanguage.ja) {
       if (localizedText(result.altTitles, 'ja').trim().isEmpty) {
         result = result.copyWith(altTitles: withLocalizedText(withOriginalLanguage(result.altTitles, OriginalLanguage.ja), 'ja', title));
@@ -179,7 +178,12 @@ extension AmazonBookX on AmazonBook {
     ];
     if (holders.length != 1 || localizedText(actors[holders.first].altNames, 'ja').trim().isNotEmpty) continue;
     final actor = actors[holders.first];
-    actors[holders.first] = actor.copyWith(altNames: [...actor.altNames.where((t) => t.lang.trim().toLowerCase() != 'ja'), LocalizedText(lang: 'ja', text: c.name)]);
+    actors[holders.first] = actor.copyWith(
+      altNames: [
+        ...actor.altNames.where((t) => t.lang.trim().toLowerCase() != 'ja'),
+        LocalizedText(lang: 'ja', text: c.name),
+      ],
+    );
     changes.add('${role.label.toLowerCase()} en japonés');
   }
   return (result.copyWith(actors: actors), changes);

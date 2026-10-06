@@ -102,10 +102,17 @@ List<TemplateIssue> templateIssues(TemplateProject project) {
   final issues = <TemplateIssue>[];
   void add(IssueLevel level, IssueScope scope, String message) => issues.add((level: level, scope: scope, message: message));
 
+  final main = m.mainLanguage;
   if (m.title.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El título es obligatorio.');
-  if (m.title.trim().isNotEmpty && missingRequired(m.altTitles, m.language)) add(IssueLevel.error, IssueScope.metadata, 'El título en ${languageName(m.language)} es obligatorio.');
-  if (m.hasSeries && missingRequired(m.altSeries, m.language)) add(IssueLevel.warning, IssueScope.metadata, 'Falta la serie en ${languageName(m.language)}.');
+  if (m.title.trim().isNotEmpty && missingRequired(m.altTitles, m.language, main: main)) add(IssueLevel.error, IssueScope.metadata, 'El título en ${languageName(m.language)} es obligatorio.');
+  if (!m.standalone && !m.hasSeries) add(IssueLevel.error, IssueScope.metadata, 'La serie es obligatoria salvo en un volumen único.');
+  if (m.hasSeries && missingRequired(m.altSeries, m.language, main: main)) add(IssueLevel.error, IssueScope.metadata, 'La serie en ${languageName(m.language)} es obligatoria.');
+  if (!m.hasAuthor) add(IssueLevel.error, IssueScope.metadata, 'El autor es obligatorio.');
+  if (!m.hasPublisher) add(IssueLevel.error, IssueScope.metadata, 'La editorial es obligatoria.');
+  if (m.date.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'La fecha de publicación es obligatoria.');
   if (m.description.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'La sinopsis es obligatoria.');
+  if (m.demographic == null) add(IssueLevel.error, IssueScope.metadata, 'La demografía es obligatoria.');
+  if (m.genres.isEmpty) add(IssueLevel.error, IssueScope.metadata, 'Elige al menos un género.');
   if (m.language.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El idioma es obligatorio.');
   if (m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-13 no es válido.');
   if (m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-10 no es válido.');
@@ -554,25 +561,15 @@ class EpubTemplateBuilder {
 
   void _writeTitlePage(StringBuffer b) {
     final m = _meta;
-    final volume = m.hasSeries ? 'Volumen ${m.seriesIndex.trim().padLeft(2, '0')}' : 'Volumen único';
-    final type = m.bookType.trim().isEmpty ? '' : '<br/><small>[${_esc(m.bookType.trim())}]</small>';
-    b
-      ..writeln('    <h2 class="subtitle sigil_not_in_toc" role="doc-subtitle">$volume$type</h2>')
-      ..writeln('    <div class="align-center" epub:type="copyright-page">');
-
-    final people = m.actors.where((a) => a.name.trim().isNotEmpty);
-    var previousCreator = true;
-    var first = true;
-    for (final role in MarcRelator.values) {
-      final names = [
-        for (final a in people)
-          if (a.roles.contains(role)) _creditName(a),
-      ];
-      if (names.isEmpty) continue;
-      final gap = first || previousCreator != role.creator ? ' class="space-1"' : '';
-      b.writeln('      <p$gap><b>${role.credit}:</b> ${names.join(', ')}</p>');
-      previousCreator = role.creator;
-      first = false;
+    // Un volumen único no lleva línea de volumen.
+    final subtitle = [
+      if (m.hasSeries) 'Volumen ${m.seriesIndex.trim().padLeft(2, '0')}',
+      if (m.bookType.trim().isNotEmpty) '<small>[${_esc(m.bookType.trim())}]</small>',
+    ];
+    if (subtitle.isNotEmpty) b.writeln('    <h2 class="subtitle sigil_not_in_toc" role="doc-subtitle">${subtitle.join('<br/>')}</h2>');
+    b.writeln('    <div class="align-center" epub:type="copyright-page">');
+    for (final line in creditLines(m.actors)) {
+      b.writeln('      <p${line.separated ? ' class="space-1"' : ''}><b>${_esc(line.label)}:</b> ${line.names}</p>');
     }
     // Los enlaces de una misma etiqueta van juntos bajo ella, en el orden en que se definieron.
     final groups = <String, List<WebLink>>{};
@@ -585,13 +582,6 @@ class EpubTemplateBuilder {
       b.writeln('      <p class="space-1">$heading${links.map(anchor).join('<br/>')}</p>');
     }
     b.writeln('    </div>');
-  }
-
-  String _creditName(Actor a) {
-    final alt = a.altNames.where((t) => t.text.trim().isNotEmpty && t.lang.trim().isNotEmpty).firstOrNull;
-    if (alt == null) return _esc(a.name.trim());
-    final lang = _esc(alt.lang.trim());
-    return '${_esc(a.name.trim())} (<span lang="$lang" xml:lang="$lang">${_esc(alt.text.trim())}</span>)';
   }
 
   // Va al final de la hoja, dentro de la personalización.
@@ -677,3 +667,59 @@ const _appleOptionsXml = '''<?xml version="1.0" encoding="UTF-8"?>
   </platform>
 </display_options>
 ''';
+
+const _languageAbbreviations = {'ja': 'jap', 'en': 'ing', 'es': 'esp', 'ko': 'cor', 'zh': 'chi'};
+
+String _abbreviation(String lang) => _languageAbbreviations[lang.trim().toLowerCase()] ?? lang.trim().toLowerCase();
+
+// «Traducción jap-ing» con origen y destino, «Traducción al español» solo con destino.
+String translationCredit(Actor a) => switch ((a.fromLang.trim(), a.toLang.trim())) {
+  ('', '') => MarcRelator.trl.credit,
+  ('', final to) => '${MarcRelator.trl.credit} al ${languageName(to)}',
+  (final from, '') => '${MarcRelator.trl.credit} del ${languageName(from)}',
+  (final from, final to) => '${MarcRelator.trl.credit} ${_abbreviation(from)}-${_abbreviation(to)}',
+};
+
+String _creditLabel(Actor a) {
+  final labels = [
+    for (final role in a.roles)
+      if (role != MarcRelator.dst) role == MarcRelator.trl ? translationCredit(a) : role.credit,
+  ];
+  return [labels.first, for (final l in labels.skip(1)) l.toLowerCase()].join(' y ');
+}
+
+// Nombre con su escritura original como ruby y, si tiene, su enlace.
+String _creditName(Actor a) {
+  final script = a.scriptName;
+  final name = script == null ? _esc(a.name.trim()) : '<ruby>${_esc(script.text.trim())}<rp>(</rp><rt>${_esc(a.name.trim())}</rt><rp>)</rp></ruby>';
+  return a.url.trim().isEmpty ? name : '<a href="${_esc(a.url.trim())}">$name</a>';
+}
+
+typedef CreditLine = ({String label, String names, bool separated});
+
+// Líneas de créditos en el orden de las personas: las seguidas con la misma función comparten
+// línea y la distribución va entre paréntesis junto al maquetador.
+List<CreditLine> creditLines(List<Actor> actors) {
+  final credited = actors.where((a) => a.credited && a.name.trim().isNotEmpty).toList();
+  final distributors = credited.where((a) => a.roles.length == 1 && a.roles.single == MarcRelator.dst).toList();
+  final hasLayout = credited.any((a) => a.roles.contains(MarcRelator.mrk));
+  final lines = <({String label, List<String> names, bool separated})>[];
+  var separated = true;
+  for (final a in credited) {
+    final isDistributor = distributors.contains(a);
+    if (isDistributor && hasLayout) {
+      separated = separated || a.separated;
+      continue;
+    }
+    final label = isDistributor ? MarcRelator.dst.credit : _creditLabel(a);
+    var name = _creditName(a);
+    if (a.roles.contains(MarcRelator.mrk) && distributors.isNotEmpty) name = '$name (${distributors.map(_creditName).join(', ')})';
+    if (lines.isNotEmpty && !separated && lines.last.label == label) {
+      lines.last.names.add(name);
+    } else {
+      lines.add((label: label, names: [name], separated: separated));
+    }
+    separated = a.separated;
+  }
+  return [for (final l in lines) (label: l.label, names: l.names.join(', '), separated: l.separated)];
+}

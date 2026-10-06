@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '/common/theme/app_dimensions.dart';
-import '/common/widgets/confirm_dialog.dart';
 import '/common/widgets/toggle_field.dart';
 import '../../../domain/section_kind.dart';
 import '../../../domain/template_section.dart';
@@ -55,19 +54,6 @@ class SectionsPanel extends StatelessWidget {
           child: Row(
             children: [
               Expanded(child: Text('Secciones (${sections.length})', style: Theme.of(context).textTheme.titleSmall)),
-              IconButton(
-                tooltip: 'Restablecer secciones',
-                icon: const Icon(Icons.restart_alt),
-                onPressed: () async {
-                  final confirmed = await confirmAction(
-                    context,
-                    title: 'Restablecer secciones',
-                    message: 'Las secciones vuelven a la disposición inicial y se pierden las actuales, con sus imágenes. Los metadatos y las fuentes se conservan.',
-                    confirmLabel: 'Restablecer',
-                  );
-                  if (confirmed) cubit.resetSections();
-                },
-              ),
               AddSectionButton(onSelected: cubit.addSection),
             ],
           ),

@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '/common/theme/app_dimensions.dart';
-import '/common/widgets/confirm_dialog.dart';
 import '/common/widgets/resizable_split_panel.dart';
 import '/common/widgets/speed_dial.dart';
 import '/inject_dependencies.dart';
 import '../../data/epub_template_builder.dart';
 import '../../domain/book_metadata.dart';
+import '../../domain/section_kind.dart';
 import '../cubit/epub_templater_cubit.dart';
 import 'widgets/fonts_form.dart';
 import 'widgets/images_form.dart';
@@ -45,7 +45,6 @@ class _EpubTemplaterContentState extends State<_EpubTemplaterContent> {
     // El shell construye el FAB a partir del notificador; se publica tras el primer frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fabNotifier.value = [
-        SpeedDialAction(icon: Icons.note_add_outlined, label: 'Nueva plantilla', onPressed: _confirmReset),
         SpeedDialAction(icon: Icons.save_alt, label: 'Generar EPUB…', onPressed: _generate),
       ];
     });
@@ -58,16 +57,6 @@ class _EpubTemplaterContentState extends State<_EpubTemplaterContent> {
       _fabNotifier.value = [];
     });
     super.dispose();
-  }
-
-  Future<void> _confirmReset() async {
-    final confirmed = await confirmAction(
-      context,
-      title: 'Nueva plantilla',
-      message: 'Se descartarán las secciones, los metadatos y las fuentes actuales que no estén guardados en un perfil.',
-      confirmLabel: 'Empezar de nuevo',
-    );
-    if (confirmed && mounted) context.read<EpubTemplaterCubit>().resetProject();
   }
 
   Future<void> _generate() async {
@@ -148,6 +137,7 @@ class _EpubTemplaterContentState extends State<_EpubTemplaterContent> {
                       metadata: context.select((EpubTemplaterCubit c) => c.state.project.metadata),
                       onChanged: context.read<EpubTemplaterCubit>().updateMetadata,
                       onRegenerateIdentifier: context.read<EpubTemplaterCubit>().regenerateIdentifier,
+                      showCredits: context.select((EpubTemplaterCubit c) => c.state.project.sections.any((s) => s.kind.layout == SectionLayout.titlePage)),
                     ),
                     const ImagesForm(),
                     const FontsForm(),

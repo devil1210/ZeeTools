@@ -151,7 +151,7 @@ void main() {
   });
 
   testWidgets('géneros y demografía se marcan y desmarcan', (tester) async {
-    await pumpView(tester, size: const Size(1280, 3000));
+    await pumpView(tester, size: const Size(1280, 6000));
     await tester.tap(find.text('Metadatos'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(SelectionPill, 'Drama'));
@@ -165,7 +165,7 @@ void main() {
     expect(cubit.state.project.metadata.subjects, ['Juvenil', 'Chicas/Shoujo', 'Acción']);
   });
 
-  testWidgets('volumen único por defecto; escribir la serie habilita su volumen numérico', (tester) async {
+  testWidgets('sin serie no hay volumen; escribir la serie habilita su volumen numérico', (tester) async {
     await pumpView(tester);
     await tester.tap(find.text('Metadatos'));
     await tester.pumpAndSettle();
@@ -193,9 +193,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextFormField, 'Título en español'), 'La historia de Mitsuba');
     await tester.pumpAndSettle();
+    // Al restablecer, la obra está escrita en japonés.
+    expect(find.widgetWithText(TextFormField, 'Título en romaji'), findsOneWidget);
+
+    await tester.tap(find.text('Japonés').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Inglés').last);
+    await tester.pumpAndSettle();
     expect(find.widgetWithText(TextFormField, 'Título en romaji'), findsNothing);
 
-    await tester.tap(find.text('Otro o sin indicar'));
+    await tester.tap(find.text('Inglés').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Japonés').last);
     await tester.pumpAndSettle();
@@ -208,12 +215,24 @@ void main() {
     expect([for (final t in m.altTitles) t.lang], ['es', 'ja-Latn', 'ja']);
     expect([for (final t in m.altSeries) (t.lang, t.text)], [('ja-Latn', 'Mitsuba no Monogatari'), ('ja', '')]);
 
-    await tester.tap(find.text('Japonés'));
+    await tester.tap(find.text('Japonés').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Coreano').last);
     await tester.pumpAndSettle();
     expect([for (final t in cubit.state.project.metadata.altTitles) (t.lang, t.text)], [('es', 'La historia de Mitsuba'), ('ko-Latn', 'Mitsuba no Monogatari'), ('ko', '三葉の物語')]);
     expect(find.widgetWithText(TextFormField, 'Título en romanización'), findsOneWidget);
+
+    // Una obra escrita en español lleva el título principal en español y el inglés pasa a equivalente opcional.
+    await tester.tap(find.text('Coreano').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Español').last);
+    await tester.pumpAndSettle();
+    final spanish = cubit.state.project.metadata;
+    expect((spanish.title, spanish.titleLang), ('La historia de Mitsuba', 'es'));
+    expect([for (final t in spanish.altTitles) (t.lang, t.text)], [('en', 'Mitsuba’s Story')]);
+    expect(find.widgetWithText(TextFormField, 'Título en español'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Título en inglés'), findsOneWidget);
+    expect(find.descendant(of: find.widgetWithText(TextFormField, 'Título en inglés'), matching: find.text('Obligatorio')), findsNothing);
   });
 
   testWidgets('eliminar una sección pide confirmación y restablecer recupera las iniciales', (tester) async {
@@ -231,7 +250,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(cubit.state.project.sections, hasLength(initial - 1));
 
-    await tester.tap(find.byTooltip('Restablecer secciones'));
+    await tester.tap(find.byTooltip('Restablecer todo'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Restablecer'));
     await tester.pumpAndSettle();
@@ -254,7 +273,14 @@ void main() {
     cubit.updateSection(chapter.key, (s) => s.copyWith(matter: BookMatter.front));
     final afterUpdate = cubit.state.project.sections;
     expect(afterUpdate.lastWhere((s) => s.matter == BookMatter.front).key, chapter.key);
-    expect([for (final s in afterUpdate) s.matter.index], orderedEquals([...[for (final s in afterUpdate) s.matter.index]]..sort()));
+    expect(
+      [for (final s in afterUpdate) s.matter.index],
+      orderedEquals(
+        [
+          ...[for (final s in afterUpdate) s.matter.index],
+        ]..sort(),
+      ),
+    );
   });
 
   testWidgets('fuentes: la de ejemplo se aplica a h1 y se añaden niveles', (tester) async {
@@ -345,9 +371,11 @@ void main() {
     expect(find.descendant(of: find.widgetWithText(TextFormField, 'Título en japonés'), matching: find.text('Obligatorio')), findsOneWidget);
     expect(find.text('Japonés'), findsWidgets);
 
+    // En un libro en inglés el japonés sigue como idioma original, pero ya no es obligatorio.
     cubit.updateMetadata((m) => m.copyWith(language: 'en'));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextFormField, 'Título en japonés'), findsNothing);
+    expect(find.widgetWithText(TextFormField, 'Título en japonés'), findsOneWidget);
+    expect(find.descendant(of: find.widgetWithText(TextFormField, 'Título en japonés'), matching: find.text('Obligatorio')), findsNothing);
   });
 
   test('las imágenes se optimizan una vez y el resultado llega a la generación', () async {

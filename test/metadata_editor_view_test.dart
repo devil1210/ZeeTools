@@ -76,7 +76,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Fecha de publicación'), 200, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Fecha de publicación'));
+    await tester.tap(find.widgetWithText(InputDecorator, 'Fecha de publicación'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(CalendarDatePicker), findsOneWidget);

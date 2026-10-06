@@ -19,13 +19,10 @@ List<MigrationIssue> migrationIssues(MigrationProject project) {
     names.update(d.fileName.trim().toLowerCase(), (n) => n + 1, ifAbsent: () => 1);
   }
   return [
-    if (m.title.trim().isEmpty)
-      _error('Falta el título en inglés.')
-    else if (titleLang != mainTitleLanguage)
-      _error('El título principal está en «$titleLang»: escríbelo en inglés.'),
-    if (missingRequired(m.altTitles, m.language)) _error('Falta el título en ${languageName(m.language)}.'),
-    if (m.hasSeries && seriesLang != mainTitleLanguage) _warning('La serie principal está en «$seriesLang»: escríbela en inglés.'),
-    if (m.hasSeries && missingRequired(m.altSeries, m.language)) _warning('Falta la serie en ${languageName(m.language)}.'),
+    if (m.title.trim().isEmpty) _error('Falta el título en ${languageName(m.mainLanguage)}.') else if (titleLang != m.mainLanguage) _error('El título principal está en «$titleLang»: escríbelo en ${languageName(m.mainLanguage)}.'),
+    if (missingRequired(m.altTitles, m.language, main: m.mainLanguage)) _error('Falta el título en ${languageName(m.language)}.'),
+    if (m.hasSeries && seriesLang != m.mainLanguage) _warning('La serie principal está en «$seriesLang»: escríbela en ${languageName(m.mainLanguage)}.'),
+    if (m.hasSeries && missingRequired(m.altSeries, m.language, main: m.mainLanguage)) _warning('Falta la serie en ${languageName(m.language)}.'),
     if (m.asin.trim().isEmpty) _warning('Sin ASIN de Amazon Japón.'),
     if (m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13)) _warning('El ISBN-13 no es válido.'),
     if (m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10)) _warning('El ISBN-10 no es válido.'),
