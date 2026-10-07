@@ -1,9 +1,9 @@
 name: zeetools
 description: "A toolset for managing EPUB files, featuring functionalities such
   as search and replace, EpubCheck validation, image optimization, template
-  creation, and conversion from Word files to EPUB, among others."
+  creation, conversion from Word files to EPUB, and ZeePub Editorial Console."
 publish_to: 'none'
-version: 0.4.5+1
+version: 0.5.0+1
 
 environment:
   sdk: ^3.13.0
