@@ -11,6 +11,7 @@ import '/common/widgets/outlined_dropdown.dart';
 import '/common/widgets/responsive_row.dart';
 import '/common/widgets/selection_pill.dart';
 import '/common/widgets/toggle_field.dart';
+import '/features/epub_templater/data/epub_template_builder.dart';
 import '/features/epub_templater/domain/subjects.dart';
 import '/features/epub_templater/domain/title_languages.dart';
 import '/features/epub_templater/presentation/views/widgets/form_fields.dart';
@@ -119,7 +120,7 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
     _illustrator = v.illustrator ?? '';
     _illustratorNative = '';
     _translator = v.translator ?? '';
-    _workgroup = v.workgroupName ?? '';
+    _workgroup = v.publisher ?? '';
     _layoutBy = v.layoutBy ?? '';
     _publisher = v.publisher ?? '';
     _webLinkLabel = 'Página Web';

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '/common/widgets/empty_state_pane.dart';
-import '/features/zeepub_editorial/data/models/zeepub_series.dart';
 import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
 import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_cubit.dart';
 import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_state.dart';
-import 'widgets/series_card.dart';
+import 'widgets/series_list_widget.dart';
 import 'widgets/telegram_publish_dialog.dart';
 import 'widgets/volume_card.dart';
 import 'zeepub_volume_edit_view.dart';
@@ -390,25 +388,7 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
               ),
 
               // TAB 2: CANONICAL SERIES
-              state.loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : state.seriesList.isEmpty
-                      ? const Center(child: Text('No hay series registradas.'))
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: state.seriesList.length,
-                          itemBuilder: (context, index) {
-                            final series = state.seriesList[index];
-                            return SeriesCard(
-                              series: series,
-                              baseUrl: state.baseUrl,
-                              onFilterBySeries: (seriesId) {
-                                cubit.setSeriesFilter(seriesId);
-                                _tabController.animateTo(0);
-                              },
-                            );
-                          },
-                        ),
+              SeriesListWidget(baseUrl: state.baseUrl),
             ],
           ),
         );
