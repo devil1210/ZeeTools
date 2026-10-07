@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../data/repositories/zeepub_editorial_repository.dart';
-import 'zeepub_editorial_state.dart';
+import '/features/zeepub_editorial/data/repositories/zeepub_editorial_repository.dart';
+import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_state.dart';
 
 class ZeepubEditorialCubit extends Cubit<ZeepubEditorialState> {
   final ZeepubEditorialRepository _repo;

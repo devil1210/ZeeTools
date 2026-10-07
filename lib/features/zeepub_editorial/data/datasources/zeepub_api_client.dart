@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../models/zeepub_ai_suggestion.dart';
-import '../models/zeepub_series.dart';
-import '../models/zeepub_volume.dart';
-import '../models/zeepub_workgroup.dart';
+import '/features/zeepub_editorial/data/models/zeepub_ai_suggestion.dart';
+import '/features/zeepub_editorial/data/models/zeepub_series.dart';
+import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
+import '/features/zeepub_editorial/data/models/zeepub_workgroup.dart';
 
 class ZeepubApiClient {
   String baseUrl;

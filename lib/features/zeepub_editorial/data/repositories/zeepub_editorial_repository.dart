@@ -1,10 +1,10 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../datasources/zeepub_api_client.dart';
-import '../models/zeepub_ai_suggestion.dart';
-import '../models/zeepub_series.dart';
-import '../models/zeepub_volume.dart';
-import '../models/zeepub_workgroup.dart';
+import '/features/zeepub_editorial/data/datasources/zeepub_api_client.dart';
+import '/features/zeepub_editorial/data/models/zeepub_ai_suggestion.dart';
+import '/features/zeepub_editorial/data/models/zeepub_series.dart';
+import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
+import '/features/zeepub_editorial/data/models/zeepub_workgroup.dart';
 
 abstract interface class ZeepubEditorialRepository {
   String getBaseUrl();

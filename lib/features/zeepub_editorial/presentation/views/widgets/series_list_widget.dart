@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../data/models/zeepub_series.dart';
-import '../../cubit/zeepub_editorial_cubit.dart';
-import '../../cubit/zeepub_editorial_state.dart';
+import '/features/zeepub_editorial/data/models/zeepub_series.dart';
+import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_cubit.dart';
+import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_state.dart';
 
 class SeriesListWidget extends StatefulWidget {
   final String baseUrl;

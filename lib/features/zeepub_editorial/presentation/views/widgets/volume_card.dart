@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../data/models/zeepub_volume.dart';
+import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
 
 class VolumeCard extends StatelessWidget {
   final ZeepubVolume volume;

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../data/models/zeepub_volume.dart';
-import '../../../data/models/zeepub_workgroup.dart';
-import '../../cubit/zeepub_editorial_cubit.dart';
-import '../../cubit/zeepub_editorial_state.dart';
+import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
+import '/features/zeepub_editorial/data/models/zeepub_workgroup.dart';
+import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_cubit.dart';
+import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_state.dart';
 
 class VolumeEditDialog extends StatefulWidget {
   final ZeepubVolume volume;

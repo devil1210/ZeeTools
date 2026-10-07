@@ -1,7 +1,7 @@
-import '../../data/models/zeepub_ai_suggestion.dart';
-import '../../data/models/zeepub_series.dart';
-import '../../data/models/zeepub_volume.dart';
-import '../../data/models/zeepub_workgroup.dart';
+import '/features/zeepub_editorial/data/models/zeepub_ai_suggestion.dart';
+import '/features/zeepub_editorial/data/models/zeepub_series.dart';
+import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
+import '/features/zeepub_editorial/data/models/zeepub_workgroup.dart';
 
 class ZeepubEditorialState {
   final bool loading;
