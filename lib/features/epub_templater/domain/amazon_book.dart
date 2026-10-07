@@ -19,12 +19,13 @@ abstract class AmazonContributor with _$AmazonContributor {
   factory AmazonContributor.fromJson(Map<String, dynamic> json) => _$AmazonContributorFromJson(json);
 }
 
-// Ficha de un producto de Amazon Japón.
+// Ficha de un producto de Amazon Japón o, para las novelas que no son ligeras, de Amazon.com.
 @Freezed()
 abstract class AmazonBook with _$AmazonBook {
   const factory AmazonBook({
     required String asin,
-    // El ASIN no existe en Amazon Japón.
+    @Default(AmazonStore.jp) AmazonStore store,
+    // El ASIN no existe en la tienda.
     @Default(false) bool missing,
     @Default('') String title,
     @Default('') String series,
@@ -55,6 +56,7 @@ const _roles = {
   '絵': MarcRelator.ill,
   'イラストレーター': MarcRelator.ill,
   'Illustrator': MarcRelator.ill,
+  'Translator': MarcRelator.trl,
   '原作': MarcRelator.ant,
   'キャラクター原案': MarcRelator.art,
 };
@@ -130,8 +132,8 @@ String nativeSeries(String series) {
 extension AmazonBookX on AmazonBook {
   // Edición japonesa (no la inglesa que también vende Amazon Japón) y de novela, no de manga.
   List<String> get problems => [
-    if (missing) 'El ASIN no existe en Amazon Japón.',
-    if (!missing && (categories.any((c) => c.contains('洋書')) || (language.isNotEmpty && !language.contains('日本語')) || !_cjk.hasMatch(title))) 'La ficha no es de la edición japonesa.',
+    if (missing) 'El ASIN no existe en ${store.label}.',
+    if (!missing && store == AmazonStore.jp && (categories.any((c) => c.contains('洋書')) || (language.isNotEmpty && !language.contains('日本語')) || !_cjk.hasMatch(title))) 'La ficha no es de la edición japonesa.',
     if (!missing && categories.isNotEmpty && RegExp(r'コミック|マンガ|漫画').hasMatch(categories.last)) 'La ficha es de un manga, no de la novela.',
   ];
 

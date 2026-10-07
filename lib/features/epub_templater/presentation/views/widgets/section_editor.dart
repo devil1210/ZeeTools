@@ -91,18 +91,18 @@ class _SectionForm extends StatelessWidget {
           ],
         ),
         FormSection(
-          title: 'Encabezado',
+          title: isTitlePage ? 'Título de la obra' : 'Encabezado',
           children: [
             ResponsiveRow(
               children: [
                 AppTextField(
-                  label: 'Título visible',
+                  label: isTitlePage ? 'Título de la obra' : 'Título visible',
                   value: s.title,
-                  hint: isTitlePage ? 'Vacío: título del libro' : null,
+                  hint: isTitlePage ? 'Vacío: el título del libro en su idioma' : null,
                   onChanged: (v) => update((s) => s.copyWith(title: v)),
                 ),
                 AppTextField(
-                  label: 'Subtítulo',
+                  label: isTitlePage ? 'Subtítulo de la obra' : 'Subtítulo',
                   value: s.subtitle,
                   helper: 'Se muestra en una segunda línea más pequeña.',
                   onChanged: (v) => update((s) => s.copyWith(subtitle: v)),
@@ -155,20 +155,22 @@ class _SectionForm extends StatelessWidget {
           title: 'Índice',
           children: [
             ResponsiveRow(
-              flex: const [2, 4, 1],
+              flex: isTitlePage ? const [2, 1] : const [2, 4, 1],
               children: [
                 ToggleField(
                   label: 'Incluir en el índice',
                   value: s.inToc,
+                  helper: isTitlePage ? 'Como «${s.effectiveTocLabel}».' : null,
                   onChanged: (v) => update((s) => s.copyWith(inToc: v)),
                 ),
-                AppTextField(
-                  label: 'Nombre en el índice',
-                  value: s.tocLabel,
-                  hint: s.copyWith(tocLabel: '').effectiveTocLabel,
-                  helper: 'Vacío: título y subtítulo. También se usa como título del documento.',
-                  onChanged: (v) => update((s) => s.copyWith(tocLabel: v)),
-                ),
+                if (!isTitlePage)
+                  AppTextField(
+                    label: 'Nombre en el índice',
+                    value: s.tocLabel,
+                    hint: s.copyWith(tocLabel: '').effectiveTocLabel,
+                    helper: 'Vacío: título y subtítulo. También se usa como título del documento.',
+                    onChanged: (v) => update((s) => s.copyWith(tocLabel: v)),
+                  ),
                 DropdownButtonFormField<int>(
                   initialValue: s.level.clamp(1, 6),
                   decoration: const InputDecoration(labelText: 'Nivel', helperText: 'h1–h6'),

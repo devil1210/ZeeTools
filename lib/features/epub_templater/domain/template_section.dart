@@ -57,9 +57,9 @@ abstract class TemplateSection with _$TemplateSection {
 
 extension TemplateSectionX on TemplateSection {
   String get effectiveTocLabel {
+    // El encabezado de la página de título es el título de la obra; en el índice siempre es «Página de título».
+    if (kind.layout == SectionLayout.titlePage) return kind.title;
     if (tocLabel.trim().isNotEmpty) return tocLabel.trim();
-    // Sin título propio, la página de título muestra el del libro, que no sirve como entrada del índice.
-    if (kind.layout == SectionLayout.titlePage && title.trim().isEmpty) return kind.title;
     return subtitle.trim().isEmpty ? title.trim() : '${title.trim()}: ${subtitle.trim()}';
   }
 

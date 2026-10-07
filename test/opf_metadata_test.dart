@@ -69,7 +69,8 @@ void main() {
     expect(m.isbn13, '978-19-7530-312-9');
     expect(m.asin, 'B08CPBD8PF');
     expect(m.sourceUrl, 'https://example.com/86');
-    expect((m.series, m.seriesIndex, m.rating), ('86 - EIGHTY-SIX [NL]', '1', 9));
+    // La etiqueta del tipo no se edita: se quita al leer y se añade al escribir.
+    expect((m.series, m.seriesIndex, m.rating), ('86 - EIGHTY-SIX', '1', 9));
   });
 
   test('reescribe solo los metadatos editables y conserva el resto', () {
@@ -101,6 +102,20 @@ void main() {
     final changed = changedFields(common, form);
     expect(changed, {MetadataField.series, MetadataField.genres});
     expect(applyFields(b, form, changed), b.copyWith(series: 'Serie', genres: ['Drama']));
+  });
+
+  test('la serie lleva la etiqueta del tipo y la novela web cambia ISBN y ASIN por su publicación original', () {
+    final m = OpfMetadata(_legacyOpf).read();
+    String written(BookMetadata edited) => OpfMetadata(_legacyOpf).write(_legacyOpf, edited, now: DateTime.utc(2026));
+    expect(written(m.copyWith(bookType: 'Novela')), contains('<meta name="calibre:series" content="86 - EIGHTY-SIX [N]"/>'));
+    final web = written(m.copyWith(bookType: 'Novela web', isbn13: '978-40-4685-088-1', asin: 'B00GD14MOA', originalSource: 'https://ncode.syosetu.com/n3009bk'));
+    expect(web, contains('>86 - EIGHTY-SIX [NW]</meta>'));
+    expect(web, contains('<dc:source>https://ncode.syosetu.com/n3009bk</dc:source>'));
+    expect(web, isNot(contains('urn:isbn:')));
+    expect(web, isNot(contains('urn:amazon:')));
+    expect(OpfMetadata(web).read().originalSource, 'https://ncode.syosetu.com/n3009bk');
+    expect(m.copyWith(bookType: 'Novela').amazonStore, AmazonStore.com);
+    expect(m.amazonStore, AmazonStore.jp);
   });
 
   test('descarta la fecha indefinida de calibre', () {

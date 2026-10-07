@@ -7,6 +7,18 @@ import 'title_languages.dart';
 part 'book_metadata.freezed.dart';
 part 'book_metadata.g.dart';
 
+// Tienda de Amazon donde se busca la ficha del libro.
+enum AmazonStore {
+  jp('https://www.amazon.co.jp', 'Amazon Japón', 'ja-JP,ja;q=0.9'),
+  com('https://www.amazon.com', 'Amazon', 'en-US,en;q=0.9');
+
+  const AmazonStore(this.host, this.label, this.acceptLanguage);
+
+  final String host;
+  final String label;
+  final String acceptLanguage;
+}
+
 // Texto en otro idioma o escritura (alternate-script). [lang] es una etiqueta
 // BCP 47: 'ja' para kanji/kana, 'ja-Latn' para romaji, 'en' para inglés.
 @Freezed()
@@ -104,6 +116,8 @@ abstract class BookMetadata with _$BookMetadata {
     @Default('') String isbn10,
     @Default('') String asin,
     @Default('') String sourceUrl,
+    // Página donde se publicó originalmente una novela web (dc:source).
+    @Default('') String originalSource,
     @Default('') String series,
     @Default('en') String seriesLang,
     @Default([]) List<LocalizedText> altSeries,
@@ -145,6 +159,12 @@ extension BookMetadataX on BookMetadata {
   bool get hasAuthor => actors.any((a) => a.roles.contains(MarcRelator.aut) && a.name.trim().isNotEmpty);
 
   bool get hasPublisher => publishers.any((x) => x.trim().isNotEmpty);
+
+  // Una novela web no tiene ISBN ni ficha de Amazon; en su lugar, la página donde se publicó.
+  bool get isWebNovel => catalogValue(bookTypes, bookType) == 'Novela web';
+
+  // Las novelas a secas se buscan en Amazon.com; las ligeras, en Amazon Japón.
+  AmazonStore get amazonStore => catalogValue(bookTypes, bookType) == 'Novela' ? AmazonStore.com : AmazonStore.jp;
 
   // Con otro idioma original cambia el idioma del título y la serie principales y sus equivalentes.
   BookMetadata withOriginal(OriginalLanguage lang) {

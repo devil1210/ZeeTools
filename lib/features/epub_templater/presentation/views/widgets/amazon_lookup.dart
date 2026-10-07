@@ -8,8 +8,8 @@ import '../../../data/amazon_repo.dart';
 import '../../../domain/amazon_book.dart';
 import '../../../domain/book_metadata.dart';
 
-// Consulta manual de la ficha de Amazon Japón del ASIN: muestra la cubierta y
-// los datos para validarla y completa los metadatos solo al aplicarla.
+// Consulta manual de la ficha de Amazon del ASIN (Japón, o Amazon.com para una novela que no es
+// ligera): muestra la cubierta y los datos para validarla y completa los metadatos solo al aplicarla.
 class AmazonLookup extends StatefulWidget {
   const AmazonLookup({super.key, required this.asin, required this.metadata, required this.onApply});
 
@@ -36,17 +36,15 @@ class _AmazonLookupState extends State<AmazonLookup> {
   @override
   void didUpdateWidget(AmazonLookup oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.asin != widget.asin) _fromCache();
+    if (oldWidget.asin != widget.asin || oldWidget.metadata.amazonStore != widget.metadata.amazonStore) _fromCache();
   }
 
   // Un ASIN ya consultado muestra su ficha sin volver a pedirla.
   void _fromCache() {
     if (!getIt.isRegistered<AmazonRepository>()) return;
-    final cached = getIt<AmazonRepository>().cached(widget.asin);
-    if (cached != null) {
-      _result = cached;
-      _applied = null;
-    }
+    final cached = getIt<AmazonRepository>().cached(widget.asin, store: widget.metadata.amazonStore);
+    _result = cached;
+    _applied = null;
   }
 
   Future<void> _lookup() async {
@@ -55,7 +53,7 @@ class _AmazonLookupState extends State<AmazonLookup> {
       _error = null;
       _applied = null;
     });
-    final result = await getIt<AmazonRepository>().lookup(widget.asin);
+    final result = await getIt<AmazonRepository>().lookup(widget.asin, store: widget.metadata.amazonStore);
     if (!mounted) return;
     setState(() {
       _loading = false;
@@ -73,7 +71,8 @@ class _AmazonLookupState extends State<AmazonLookup> {
   Widget build(BuildContext context) {
     final asin = widget.asin.trim().toUpperCase();
     // La ficha de otro ASIN deja de mostrarse; lo ya aplicado se queda en los campos.
-    final result = _result?.book.asin == asin ? _result : null;
+    final store = widget.metadata.amazonStore;
+    final result = _result?.book.asin == asin && _result?.book.store == store ? _result : null;
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,7 +84,7 @@ class _AmazonLookupState extends State<AmazonLookup> {
             children: [
               OutlinedButton.icon(
                 icon: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.travel_explore, size: 18),
-                label: const Text('Consultar Amazon Japón'),
+                label: Text('Consultar ${store.label}'),
                 onPressed: _loading || !amazonAsin.hasMatch(asin) ? null : _lookup,
               ),
               if (_error case final error?) Expanded(child: Text(error, style: TextStyle(color: theme.colorScheme.error))),
@@ -152,7 +151,7 @@ class _BookCard extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         FilledButton.tonalIcon(icon: const Icon(Icons.download_done, size: 18), label: const Text('Completar los metadatos'), onPressed: onApply),
-                        OutlinedButton.icon(icon: const Icon(Icons.open_in_new, size: 18), label: const Text('Abrir en Amazon'), onPressed: () => openExternal(amazonUrl(book.asin))),
+                        OutlinedButton.icon(icon: const Icon(Icons.open_in_new, size: 18), label: const Text('Abrir en Amazon'), onPressed: () => openExternal(amazonUrl(book.asin, store: book.store))),
                         if (applied case final changes?) Text(changes.isEmpty ? 'No había nada que completar.' : 'Completado: ${changes.join(', ')}.'),
                       ],
                     ),

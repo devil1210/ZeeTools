@@ -14,7 +14,13 @@ String xmlEscape(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
 // dc:description es HTML guardado como texto (así lo lee calibre): el texto se escapa y cada salto
 // de línea pasa a <br/>, válido tanto si el lector lo trata como HTML como si lo inserta en XHTML;
 // un «<br>» escrito a mano sigue siendo texto.
-String descriptionToHtml(String text) => text.trim().replaceAll('\r\n', '\n').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', '<br/>');
+String descriptionToHtml(String text) => text
+    .trim()
+    .replaceAll('\r\n', '\n')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('\n', '<br/>');
 
 const _entities = {'amp': '&', 'lt': '<', 'gt': '>', 'quot': '"', 'apos': "'", 'nbsp': '\u00a0'};
 
@@ -23,12 +29,17 @@ const _entities = {'amp': '&', 'lt': '<', 'gt': '>', 'quot': '"', 'apos': "'", '
 final _htmlTag = RegExp(r'</?(p|div|span|b|i|em|strong|u|s|small|big|sup|sub|pre|blockquote|ul|ol|li|table|tbody|thead|tr|td|th|a|font|center)(\s[^>]*)?/?>', caseSensitive: false);
 
 // Inversa de [descriptionToHtml]; también entiende los párrafos <p> de otros editores.
-String descriptionFromHtml(String html) => html.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n').replaceAll(RegExp(r'</p>\s*<p[^>]*>', caseSensitive: false), '\n\n').replaceAll(_htmlTag, '').replaceAllMapped(RegExp(r'&(#x?[0-9a-fA-F]+|[a-zA-Z]+);'), (m) {
-  final ref = m.group(1)!;
-  if (ref.startsWith('#x') || ref.startsWith('#X')) return String.fromCharCode(int.parse(ref.substring(2), radix: 16));
-  if (ref.startsWith('#')) return String.fromCharCode(int.parse(ref.substring(1)));
-  return _entities[ref] ?? m.group(0)!;
-}).trim();
+String descriptionFromHtml(String html) => html
+    .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+    .replaceAll(RegExp(r'</p>\s*<p[^>]*>', caseSensitive: false), '\n\n')
+    .replaceAll(_htmlTag, '')
+    .replaceAllMapped(RegExp(r'&(#x?[0-9a-fA-F]+|[a-zA-Z]+);'), (m) {
+      final ref = m.group(1)!;
+      if (ref.startsWith('#x') || ref.startsWith('#X')) return String.fromCharCode(int.parse(ref.substring(2), radix: 16));
+      if (ref.startsWith('#')) return String.fromCharCode(int.parse(ref.substring(1)));
+      return _entities[ref] ?? m.group(0)!;
+    })
+    .trim();
 
 final _uuid = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
 
@@ -92,16 +103,17 @@ void writeOpfMetadata(StringBuffer b, BookMetadata m, {required DateTime now}) {
     b.writeln('    <dc:publisher id="publisher${(i + 1).toString().padLeft(2, '0')}">${xmlEscape(publisher.trim())}</dc:publisher>');
   }
 
-  // ONIX code list 5: 15 = ISBN-13, 02 = ISBN-10.
-  if (m.isbn13.trim().isNotEmpty) {
+  // ONIX code list 5: 15 = ISBN-13, 02 = ISBN-10. Una novela web no tiene ISBN ni ASIN.
+  final web = m.isWebNovel;
+  if (!web && m.isbn13.trim().isNotEmpty) {
     b.writeln('    <dc:identifier id="isbn13">urn:isbn:${xmlEscape(m.isbn13.trim())}</dc:identifier>');
     meta('identifier-type', '15', refines: 'isbn13', scheme: 'onix:codelist5');
   }
-  if (m.isbn10.trim().isNotEmpty) {
+  if (!web && m.isbn10.trim().isNotEmpty) {
     b.writeln('    <dc:identifier id="isbn10">urn:isbn:${xmlEscape(m.isbn10.trim())}</dc:identifier>');
     meta('identifier-type', '02', refines: 'isbn10', scheme: 'onix:codelist5');
   }
-  if (m.asin.trim().isNotEmpty) {
+  if (!web && m.asin.trim().isNotEmpty) {
     b.writeln('    <dc:identifier id="amazon-id">urn:amazon:${xmlEscape(m.asin.trim())}</dc:identifier>');
     meta('identifier-type', 'amazon', refines: 'amazon-id');
   }
@@ -109,17 +121,19 @@ void writeOpfMetadata(StringBuffer b, BookMetadata m, {required DateTime now}) {
     b.writeln('    <dc:identifier id="uri-id">${xmlEscape(m.sourceUrl.trim())}</dc:identifier>');
     meta('identifier-type', 'uri', refines: 'uri-id');
   }
+  if (m.originalSource.trim().isNotEmpty) b.writeln('    <dc:source>${xmlEscape(m.originalSource.trim())}</dc:source>');
 
   if (m.hasSeries) {
     final seriesLang = m.seriesLang.trim();
     final index = m.seriesIndex.trim().isEmpty ? '1' : m.seriesIndex.trim();
-    b.writeln('    <meta id="serie" property="belongs-to-collection"${langAttr(seriesLang)}>${xmlEscape(m.series.trim())}</meta>');
+    final series = taggedSeries(m.series, m.bookType);
+    b.writeln('    <meta id="serie" property="belongs-to-collection"${langAttr(seriesLang)}>${xmlEscape(series)}</meta>');
     meta('collection-type', 'series', refines: 'serie');
     meta('group-position', index, refines: 'serie');
     alternates('serie', seriesLang.isEmpty ? lang : seriesLang, m.altSeries);
     // Metadatos OPF 2 que leen calibre y lectores sin soporte de colecciones EPUB 3.
     b
-      ..writeln('    <meta name="calibre:series" content="${xmlEscape(m.series.trim())}"/>')
+      ..writeln('    <meta name="calibre:series" content="${xmlEscape(series)}"/>')
       ..writeln('    <meta name="calibre:series_index" content="${xmlEscape(index)}"/>');
   }
   if (m.rating != null) b.writeln('    <meta name="calibre:rating" content="${m.rating}"/>');
@@ -133,7 +147,7 @@ final _knownSubjects = {
   for (final d in Demographic.values) ...[d.label, d.ageGroup],
 };
 
-const _ownedDc = {'title', 'language', 'date', 'creator', 'contributor', 'type', 'description', 'publisher'};
+const _ownedDc = {'title', 'language', 'date', 'creator', 'contributor', 'type', 'description', 'publisher', 'source'};
 const _ownedCalibre = {'calibre:series', 'calibre:series_index', 'calibre:rating', 'calibre:title_sort'};
 
 // Lectura del OPF: los metadatos que entiende el formulario y los elementos
@@ -246,7 +260,9 @@ class OpfMetadata {
       isbn10: identifiers['isbn10'] ?? '',
       asin: identifiers['asin'] ?? '',
       sourceUrl: identifiers['sourceUrl'] ?? '',
-      series: series.text,
+      originalSource: _dc('source').firstOrNull?.innerText.trim() ?? '',
+      // La etiqueta del tipo ([NL]…) se añade al escribir según el tipo de libro.
+      series: seriesWithoutTag(series.text),
       seriesLang: series.lang,
       altSeries: series.alternates,
       seriesIndex: (collection == null ? null : _refined(collection, 'group-position')) ?? _named('calibre:series_index') ?? '1',

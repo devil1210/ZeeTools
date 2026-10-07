@@ -65,6 +65,7 @@ class MetadataForm extends StatelessWidget {
     final main = original?.mainLanguage ?? mainTitleLanguage;
     final required = requiredAlternate(m.language, main: main);
     final separators = m.actors.where((a) => a.separated).length;
+    final web = m.isWebNovel && !mixed.contains(MetadataField.bookType);
     final textTheme = Theme.of(context).textTheme;
     final errorColor = Theme.of(context).colorScheme.error;
     // [error] solo se muestra cuando el campo no está mezclado ni vacío en varios libros.
@@ -85,10 +86,11 @@ class MetadataForm extends StatelessWidget {
             ResponsiveRow(
               children: [
                 AppTextField(
-                  label: 'ASIN de Amazon',
+                  label: 'ASIN de ${m.amazonStore.label}',
                   value: m.asin,
                   hint: _hint(MetadataField.asin),
                   floatLabel: _float(MetadataField.asin),
+                  enabled: !web,
                   onChanged: (v) => update((m) => m.copyWith(asin: v.trim().toUpperCase())),
                 ),
                 AppTextField(
@@ -96,38 +98,46 @@ class MetadataForm extends StatelessWidget {
                   value: m.isbn13,
                   hint: _hint(MetadataField.isbn13, '978-XX-XXXX-XXX-X'),
                   floatLabel: _float(MetadataField.isbn13),
+                  enabled: !web,
                   inputFormatters: [isbnFormatter(isbn13Groups)],
-                  error: m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13) ? 'ISBN-13 no válido' : null,
-                  onChanged: (v) => update(
-                    (m) => m.copyWith(
-                      isbn13: v,
-                      isbn10: switch (isbn10From13(v)) {
-                        final ten? when m.isbn10.trim().isEmpty => formatIsbn(ten, isbn10Groups),
-                        _ => m.isbn10,
-                      },
-                    ),
-                  ),
+                  error: !web && m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13) ? 'ISBN-13 no válido' : null,
+                  onChanged: (v) => update((m) => m.copyWith(
+                    isbn13: v,
+                    isbn10: switch (isbn10From13(v)) {
+                      final ten? when m.isbn10.trim().isEmpty => formatIsbn(ten, isbn10Groups),
+                      _ => m.isbn10,
+                    },
+                  )),
                 ),
                 AppTextField(
                   label: 'ISBN-10',
                   value: m.isbn10,
                   hint: _hint(MetadataField.isbn10, 'XX-XXXX-XXX-X'),
                   floatLabel: _float(MetadataField.isbn10),
+                  enabled: !web,
                   inputFormatters: [isbnFormatter(isbn10Groups)],
-                  error: m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10) ? 'ISBN-10 no válido' : null,
-                  onChanged: (v) => update(
-                    (m) => m.copyWith(
-                      isbn10: v,
-                      isbn13: switch (isbn13From10(v)) {
-                        final thirteen? when m.isbn13.trim().isEmpty => formatIsbn(thirteen, isbn13Groups),
-                        _ => m.isbn13,
-                      },
-                    ),
-                  ),
+                  error: !web && m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10) ? 'ISBN-10 no válido' : null,
+                  onChanged: (v) => update((m) => m.copyWith(
+                    isbn10: v,
+                    isbn13: switch (isbn13From10(v)) {
+                      final thirteen? when m.isbn13.trim().isEmpty => formatIsbn(thirteen, isbn13Groups),
+                      _ => m.isbn13,
+                    },
+                  )),
                 ),
               ],
             ),
-            if (!multiple) AmazonLookup(asin: m.asin, metadata: m, onApply: update),
+            if (web)
+              AppTextField(
+                label: 'Publicación original',
+                value: m.originalSource,
+                hint: _hint(MetadataField.originalSource, 'https://ncode.syosetu.com/n3009bk'),
+                floatLabel: _float(MetadataField.originalSource),
+                helper: 'Página donde se publicó la novela web; una novela web no tiene ISBN ni ficha de Amazon.',
+                onChanged: (v) => update((m) => m.copyWith(originalSource: v.trim())),
+              )
+            else if (!multiple)
+              AmazonLookup(asin: m.asin, metadata: m, onApply: update),
             Row(
               children: [
                 Expanded(

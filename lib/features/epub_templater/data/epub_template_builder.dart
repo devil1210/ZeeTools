@@ -114,8 +114,8 @@ List<TemplateIssue> templateIssues(TemplateProject project) {
   if (m.demographic == null) add(IssueLevel.error, IssueScope.metadata, 'La demografía es obligatoria.');
   if (m.genres.isEmpty) add(IssueLevel.error, IssueScope.metadata, 'Elige al menos un género.');
   if (m.language.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El idioma es obligatorio.');
-  if (m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-13 no es válido.');
-  if (m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-10 no es válido.');
+  if (!m.isWebNovel && m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-13 no es válido.');
+  if (!m.isWebNovel && m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-10 no es válido.');
   if (m.hasSeries && double.tryParse(m.seriesIndex.trim()) == null) add(IssueLevel.warning, IssueScope.metadata, 'El número de volumen no es numérico.');
   if (m.date.trim().isNotEmpty && DateTime.tryParse(m.date.trim()) == null) add(IssueLevel.error, IssueScope.metadata, 'La fecha no tiene formato AAAA-MM-DD.');
 

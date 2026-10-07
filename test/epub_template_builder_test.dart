@@ -86,19 +86,13 @@ void main() {
   });
 
   test('los enlaces de una misma etiqueta van juntos bajo ella, en el orden definido', () {
-    final files = _build(
-      _project(
-        metadata: (m) => m.copyWith(
-          links: const [
-            WebLink(label: 'Redes sociales', url: 'https://x.com/a'),
-            WebLink(label: 'Página Web', url: 'https://grupo.com'),
-            WebLink(label: 'Redes sociales', url: 'https://facebook.com/a'),
-            WebLink(label: 'Redes sociales', url: 'https://discord.gg/a'),
-            WebLink(label: 'Distribuye', url: 'https://www.facebook.com/ZeePubs', text: 'ZeePubs'),
-          ],
-        ),
-      ),
-    );
+    final files = _build(_project(metadata: (m) => m.copyWith(links: const [
+      WebLink(label: 'Redes sociales', url: 'https://x.com/a'),
+      WebLink(label: 'Página Web', url: 'https://grupo.com'),
+      WebLink(label: 'Redes sociales', url: 'https://facebook.com/a'),
+      WebLink(label: 'Redes sociales', url: 'https://discord.gg/a'),
+      WebLink(label: 'Distribuye', url: 'https://www.facebook.com/ZeePubs', text: 'ZeePubs'),
+    ])));
     final title = files['OEBPS/Text/titulo.xhtml']!;
     expect(title, contains('<p class="space-1"><b>Redes sociales</b><br/><a href="https://x.com/a">https://x.com/a</a><br/><a href="https://facebook.com/a">https://facebook.com/a</a><br/><a href="https://discord.gg/a">https://discord.gg/a</a></p>'));
     expect(title.indexOf('Redes sociales'), lessThan(title.indexOf('Página Web')));
