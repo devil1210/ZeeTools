@@ -6,12 +6,15 @@ import '/features/epub_templater/epub_templater_route.dart';
 import '/features/image_optimizer/image_optimizer_route.dart';
 import '/features/metadata_editor/metadata_editor_route.dart';
 import '/features/search_replace/search_replace_route.dart';
+import '/features/zeepub_editorial/zeepub_editorial_route.dart';
 
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),
       body: GridView.count(
@@ -20,6 +23,30 @@ class DashboardView extends StatelessWidget {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
         children: [
+          // Consola Editorial ZeePub
+          Card(
+            color: cs.primaryContainer.withValues(alpha: 0.3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: cs.primary.withValues(alpha: 0.5), width: 1.5),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => context.goNamed(ZeepubEditorialRoute.name),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.auto_stories_rounded, size: 38, color: cs.primary),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Consola Editorial ZeePub',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.bold, color: cs.primary),
+                  ),
+                ],
+              ),
+            ),
+          ),
           Card(
             child: InkWell(
               borderRadius: BorderRadius.circular(12),

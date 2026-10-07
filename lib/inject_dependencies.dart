@@ -25,6 +25,9 @@ import 'features/search_replace/data/search_replace_settings_repo.dart';
 import 'features/search_replace/presentation/cubit/search_replace_cubit.dart';
 import 'features/settings/data/preferences_repo.dart';
 import 'features/settings/presentation/cubit/settings_cubit.dart';
+import 'features/zeepub_editorial/data/datasources/zeepub_api_client.dart';
+import 'features/zeepub_editorial/data/repositories/zeepub_editorial_repository.dart';
+import 'features/zeepub_editorial/presentation/cubit/zeepub_editorial_cubit.dart';
 
 final getIt = GetIt.instance;
 
@@ -50,6 +53,10 @@ Future<void> injectDependencies() async {
   getIt.registerLazySingleton<EpubMigratorRepository>(() => EpubMigratorRepositoryImpl());
   getIt.registerLazySingleton<EpubMetadataRepository>(() => EpubMetadataRepositoryImpl(EpubRepositoryImpl()));
 
+  // ZeePub Editorial
+  getIt.registerLazySingleton<ZeepubApiClient>(() => ZeepubApiClient());
+  getIt.registerLazySingleton<ZeepubEditorialRepository>(() => ZeepubEditorialRepositoryImpl(getIt(), getIt()));
+
   // Cubits
   getIt.registerFactory<SearchReplaceCubit>(() => SearchReplaceCubit(getIt(), getIt(), getIt()));
   getIt.registerFactory<SettingsCubit>(() => SettingsCubit(getIt()));
@@ -57,6 +64,7 @@ Future<void> injectDependencies() async {
   getIt.registerFactory<EpubTemplaterCubit>(() => EpubTemplaterCubit(getIt(), getIt(), getIt(), getIt()));
   getIt.registerFactory<MetadataEditorCubit>(() => MetadataEditorCubit(getIt()));
   getIt.registerFactory<EpubMigratorCubit>(() => EpubMigratorCubit(getIt()));
+  getIt.registerFactory<ZeepubEditorialCubit>(() => ZeepubEditorialCubit(getIt()));
 
   getIt.registerLazySingleton<ValueNotifier<List<SpeedDialAction>>>(() => ValueNotifier<List<SpeedDialAction>>([]));
 }
