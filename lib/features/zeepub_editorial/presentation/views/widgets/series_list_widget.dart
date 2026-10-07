@@ -124,7 +124,7 @@ class _SeriesListWidgetState extends State<SeriesListWidget> {
     final tt = Theme.of(context).textTheme;
 
     return BlocBuilder<ZeepubEditorialCubit, ZeepubEditorialState>(
-      builder: (context, state) {
+      builder: (BuildContext context, ZeepubEditorialState state) {
         return Column(
           children: [
             // Search Bar

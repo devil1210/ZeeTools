@@ -128,12 +128,12 @@ class _VolumeEditDialogState extends State<VolumeEditDialog> {
     final coverUrl = _buildCoverUrl();
 
     return BlocConsumer<ZeepubEditorialCubit, ZeepubEditorialState>(
-      listener: (context, state) {
+      listener: (BuildContext context, ZeepubEditorialState state) {
         if (state.latestAiSuggestion != null) {
           _applyAiSuggestion(state);
         }
       },
-      builder: (context, state) {
+      builder: (BuildContext context, ZeepubEditorialState state) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: ConstrainedBox(

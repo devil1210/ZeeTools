@@ -121,7 +121,7 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
     final tt = Theme.of(context).textTheme;
 
     return BlocConsumer<ZeepubEditorialCubit, ZeepubEditorialState>(
-      listener: (context, state) {
+      listener: (BuildContext context, ZeepubEditorialState state) {
         if (state.errorMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -140,7 +140,7 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
           context.read<ZeepubEditorialCubit>().clearNotifications();
         }
       },
-      builder: (context, state) {
+      builder: (BuildContext context, ZeepubEditorialState state) {
         final cubit = context.read<ZeepubEditorialCubit>();
 
         return Scaffold(

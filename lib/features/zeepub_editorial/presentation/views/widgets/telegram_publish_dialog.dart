@@ -81,7 +81,7 @@ class _TelegramPublishDialogState extends State<TelegramPublishDialog> {
     final tt = Theme.of(context).textTheme;
 
     return BlocBuilder<ZeepubEditorialCubit, ZeepubEditorialState>(
-      builder: (context, state) {
+      builder: (BuildContext context, ZeepubEditorialState state) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: ConstrainedBox(
