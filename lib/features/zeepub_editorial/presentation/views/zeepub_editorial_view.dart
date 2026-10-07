@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '/common/widgets/empty_state_pane.dart';
+import '/features/zeepub_editorial/data/models/zeepub_series.dart';
 import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
 import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_cubit.dart';
 import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_state.dart';
-import 'widgets/series_list_widget.dart';
+import 'widgets/series_card.dart';
 import 'widgets/telegram_publish_dialog.dart';
 import 'widgets/volume_card.dart';
-import 'widgets/volume_edit_dialog.dart';
+import 'zeepub_volume_edit_view.dart';
 
 class ZeepubEditorialView extends StatefulWidget {
   const ZeepubEditorialView({super.key});
@@ -87,21 +89,6 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
     );
   }
 
-  void _openEditModal(BuildContext context, ZeepubVolume volume, ZeepubEditorialState state) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => BlocProvider.value(
-        value: context.read<ZeepubEditorialCubit>(),
-        child: VolumeEditDialog(
-          volume: volume,
-          workgroups: state.workgroups,
-          baseUrl: state.baseUrl,
-        ),
-      ),
-    );
-  }
-
   void _openPublishModal(BuildContext context, ZeepubVolume volume, ZeepubEditorialState state) {
     showDialog(
       context: context,
@@ -142,6 +129,16 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
       },
       builder: (BuildContext context, ZeepubEditorialState state) {
         final cubit = context.read<ZeepubEditorialCubit>();
+
+        // FULL PAGE EDITOR: If an active volume is selected, render full-page editor
+        if (state.activeVolume != null) {
+          return ZeepubVolumeEditView(
+            volume: state.activeVolume!,
+            workgroups: state.workgroups,
+            baseUrl: state.baseUrl,
+            onBack: () => cubit.closeVolumeDetail(),
+          );
+        }
 
         return Scaffold(
           appBar: AppBar(
@@ -346,7 +343,7 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
                                       return VolumeCard(
                                         volume: vol,
                                         baseUrl: state.baseUrl,
-                                        onEdit: () => _openEditModal(context, vol, state),
+                                        onEdit: () => cubit.openVolumeDetail(vol.bookHash),
                                         onPublish: () => _openPublishModal(context, vol, state),
                                       );
                                     },
@@ -374,16 +371,13 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.chevron_left),
-                                tooltip: 'Página anterior',
-                                onPressed: state.currentPage > 1 && !state.loading
+                                onPressed: state.currentPage > 1
                                     ? () => cubit.loadVolumes(page: state.currentPage - 1)
                                     : null,
                               ),
-                              Text('${state.currentPage}', style: tt.labelLarge?.copyWith(fontWeight: FontWeight.bold)),
                               IconButton(
                                 icon: const Icon(Icons.chevron_right),
-                                tooltip: 'Página siguiente',
-                                onPressed: state.currentPage < state.totalPages && !state.loading
+                                onPressed: state.currentPage < state.totalPages
                                     ? () => cubit.loadVolumes(page: state.currentPage + 1)
                                     : null,
                               ),
@@ -395,8 +389,26 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
                 ],
               ),
 
-              // TAB 2: SERIES
-              SeriesListWidget(baseUrl: state.baseUrl),
+              // TAB 2: CANONICAL SERIES
+              state.loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : state.seriesList.isEmpty
+                      ? const Center(child: Text('No hay series registradas.'))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: state.seriesList.length,
+                          itemBuilder: (context, index) {
+                            final series = state.seriesList[index];
+                            return SeriesCard(
+                              series: series,
+                              baseUrl: state.baseUrl,
+                              onFilterBySeries: (seriesId) {
+                                cubit.setSeriesFilter(seriesId);
+                                _tabController.animateTo(0);
+                              },
+                            );
+                          },
+                        ),
             ],
           ),
         );
