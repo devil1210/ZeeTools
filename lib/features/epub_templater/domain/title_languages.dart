@@ -115,3 +115,24 @@ bool missingRequired(List<LocalizedText> items, String bookLanguage, {String mai
   final lang? => localizedText(items, lang).trim().isEmpty,
   null => false,
 };
+
+// El título sigue a la serie mientras empiece por ella o esté vacío: casi siempre es la serie
+// con el volumen y el grupo detrás («Serie - Volumen 03 [GS]»).
+String followSeries(String title, String oldSeries, String newSeries) {
+  if (title.trim().isEmpty) return newSeries;
+  if (oldSeries.isNotEmpty && title.startsWith(oldSeries)) return newSeries + title.substring(oldSeries.length);
+  return title;
+}
+
+// Los equivalentes del título siguen a los de la serie en el mismo idioma.
+List<LocalizedText> followSeriesAlternates(List<LocalizedText> titles, List<LocalizedText> oldSeries, List<LocalizedText> newSeries) {
+  var out = titles;
+  for (final s in newSeries) {
+    final before = localizedText(oldSeries, s.lang);
+    if (before == s.text) continue;
+    final title = localizedText(out, s.lang);
+    final followed = followSeries(title, before, s.text);
+    if (followed != title) out = withLocalizedText(out, s.lang, followed);
+  }
+  return out;
+}

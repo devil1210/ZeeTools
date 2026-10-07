@@ -14,6 +14,7 @@ import 'package:zeetools/features/epub_templater/domain/section_kind.dart';
 import 'package:zeetools/features/epub_templater/domain/subjects.dart';
 import 'package:zeetools/features/epub_templater/domain/template_project.dart';
 import 'package:zeetools/features/epub_templater/domain/template_section.dart';
+import 'package:zeetools/features/epub_templater/domain/title_languages.dart';
 
 final _png = Uint8List.fromList(const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
 
@@ -139,6 +140,23 @@ void main() {
     );
     expect(title, isNot(contains('Oculto')));
     expect(title, contains('<h2 class="subtitle sigil_not_in_toc" role="doc-subtitle">Volumen 03<br/><small>[Novela ligera]</small></h2>'));
+  });
+
+  test('varias personas con la misma función comparten línea: «A, B y C»', () {
+    final lines = creditLines(const [
+      Actor(name: 'Rin-san', roles: [MarcRelator.trl], toLang: 'es'),
+      Actor(name: 'Edngo', roles: [MarcRelator.trl], toLang: 'es'),
+      Actor(name: 'Kaiser', roles: [MarcRelator.trl], toLang: 'es'),
+      Actor(name: 'Solo', roles: [MarcRelator.pfr]),
+    ]);
+    expect([for (final l in lines) (l.label, l.names)], [('Traducción al español', 'Rin-san, Edngo y Kaiser'), ('Corrección', 'Solo')]);
+  });
+
+  test('el título sigue a la serie mientras empiece por ella', () {
+    expect(followSeries('', '', 'S'), 'S');
+    expect(followSeries('Serie - Volumen 03 [GS]', 'Serie', 'Serie Nueva'), 'Serie Nueva - Volumen 03 [GS]');
+    expect(followSeries('Otro título', 'Serie', 'Serie Nueva'), 'Otro título');
+    expect(followSeriesAlternates(const [LocalizedText(lang: 'es', text: 'La serie - Volumen 03')], const [LocalizedText(lang: 'es', text: 'La serie')], const [LocalizedText(lang: 'es', text: 'La saga')]), const [LocalizedText(lang: 'es', text: 'La saga - Volumen 03')]);
   });
 
   test('autor, editorial, fecha, demografía, géneros y serie son obligatorios', () {

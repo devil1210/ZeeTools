@@ -77,57 +77,54 @@ class MetadataForm extends StatelessWidget {
       );
     }
 
+    final asinField = AppTextField(
+      label: 'ASIN de ${m.amazonStore.label}',
+      value: m.asin,
+      hint: _hint(MetadataField.asin),
+      floatLabel: _float(MetadataField.asin),
+      enabled: !web,
+      onChanged: (v) => update((m) => m.copyWith(asin: v.trim().toUpperCase())),
+    );
+    final isbn13Field = AppTextField(
+      label: 'ISBN-13',
+      value: m.isbn13,
+      hint: _hint(MetadataField.isbn13, '978-XX-XXXX-XXX-X'),
+      floatLabel: _float(MetadataField.isbn13),
+      enabled: !web,
+      inputFormatters: [isbnFormatter(isbn13Groups)],
+      error: !web && m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13) ? 'ISBN-13 no válido' : null,
+      onChanged: (v) => update((m) => m.copyWith(
+        isbn13: v,
+        isbn10: switch (isbn10From13(v)) {
+          final ten? when m.isbn10.trim().isEmpty => formatIsbn(ten, isbn10Groups),
+          _ => m.isbn10,
+        },
+      )),
+    );
+    final isbn10Field = AppTextField(
+      label: 'ISBN-10',
+      value: m.isbn10,
+      hint: _hint(MetadataField.isbn10, 'XX-XXXX-XXX-X'),
+      floatLabel: _float(MetadataField.isbn10),
+      enabled: !web,
+      inputFormatters: [isbnFormatter(isbn10Groups)],
+      error: !web && m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10) ? 'ISBN-10 no válido' : null,
+      onChanged: (v) => update((m) => m.copyWith(
+        isbn10: v,
+        isbn13: switch (isbn13From10(v)) {
+          final thirteen? when m.isbn13.trim().isEmpty => formatIsbn(thirteen, isbn13Groups),
+          _ => m.isbn13,
+        },
+      )),
+    );
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppPadding.large, AppPadding.large, AppPadding.large, 96),
       children: [
         FormSection(
           title: 'Identificadores',
           children: [
-            ResponsiveRow(
-              children: [
-                AppTextField(
-                  label: 'ASIN de ${m.amazonStore.label}',
-                  value: m.asin,
-                  hint: _hint(MetadataField.asin),
-                  floatLabel: _float(MetadataField.asin),
-                  enabled: !web,
-                  onChanged: (v) => update((m) => m.copyWith(asin: v.trim().toUpperCase())),
-                ),
-                AppTextField(
-                  label: 'ISBN-13',
-                  value: m.isbn13,
-                  hint: _hint(MetadataField.isbn13, '978-XX-XXXX-XXX-X'),
-                  floatLabel: _float(MetadataField.isbn13),
-                  enabled: !web,
-                  inputFormatters: [isbnFormatter(isbn13Groups)],
-                  error: !web && m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13) ? 'ISBN-13 no válido' : null,
-                  onChanged: (v) => update((m) => m.copyWith(
-                    isbn13: v,
-                    isbn10: switch (isbn10From13(v)) {
-                      final ten? when m.isbn10.trim().isEmpty => formatIsbn(ten, isbn10Groups),
-                      _ => m.isbn10,
-                    },
-                  )),
-                ),
-                AppTextField(
-                  label: 'ISBN-10',
-                  value: m.isbn10,
-                  hint: _hint(MetadataField.isbn10, 'XX-XXXX-XXX-X'),
-                  floatLabel: _float(MetadataField.isbn10),
-                  enabled: !web,
-                  inputFormatters: [isbnFormatter(isbn10Groups)],
-                  error: !web && m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10) ? 'ISBN-10 no válido' : null,
-                  onChanged: (v) => update((m) => m.copyWith(
-                    isbn10: v,
-                    isbn13: switch (isbn13From10(v)) {
-                      final thirteen? when m.isbn13.trim().isEmpty => formatIsbn(thirteen, isbn13Groups),
-                      _ => m.isbn13,
-                    },
-                  )),
-                ),
-              ],
-            ),
-            if (web)
+            if (web) ...[
               AppTextField(
                 label: 'Publicación original',
                 value: m.originalSource,
@@ -135,9 +132,12 @@ class MetadataForm extends StatelessWidget {
                 floatLabel: _float(MetadataField.originalSource),
                 helper: 'Página donde se publicó la novela web; una novela web no tiene ISBN ni ficha de Amazon.',
                 onChanged: (v) => update((m) => m.copyWith(originalSource: v.trim())),
-              )
-            else if (!multiple)
-              AmazonLookup(asin: m.asin, metadata: m, onApply: update),
+              ),
+              ResponsiveRow(children: [asinField, isbn13Field, isbn10Field]),
+            ] else ...[
+              if (multiple) asinField else AmazonLookup(asin: m.asin, metadata: m, onApply: update, field: asinField),
+              ResponsiveRow(children: [isbn13Field, isbn10Field]),
+            ],
             Row(
               children: [
                 Expanded(
@@ -160,17 +160,10 @@ class MetadataForm extends StatelessWidget {
                   ),
               ],
             ),
-            AppTextField(
-              label: 'Enlace de la publicación',
-              value: m.sourceUrl,
-              hint: _hint(MetadataField.sourceUrl, 'https://grupotraductor.com/nombre-novela'),
-              floatLabel: _float(MetadataField.sourceUrl),
-              onChanged: (v) => update((m) => m.copyWith(sourceUrl: v.trim())),
-            ),
           ],
         ),
         FormSection(
-          title: 'Título y serie',
+          title: 'Serie y título',
           children: [
             OutlinedDropdown<OriginalLanguage?>(
               label: 'Idioma en que se escribió la obra',
@@ -191,36 +184,10 @@ class MetadataForm extends StatelessWidget {
                     },
               items: [for (final o in OriginalLanguage.values) DropdownMenuItem(value: o, child: Text(o.label))],
             ),
-            AppTextField(
-              key: ValueKey('title-$main'),
-              label: 'Título en ${languageName(main)}',
-              value: m.title,
-              hint: _hint(MetadataField.title, 'Nombre de la novela - Volumen 01 [SIGLAS]'),
-              floatLabel: _float(MetadataField.title),
-              error: m.title.trim().isEmpty && !mixed.contains(MetadataField.title) ? 'Obligatorio' : null,
-              onChanged: (v) => update((m) => m.copyWith(title: v, titleLang: main)),
-            ),
-            _TitleSortField(
-              value: m.titleSort,
-              hint: mixed.contains(MetadataField.titleSort) ? mixedValuesHint : null,
-              onChanged: (v) => update((m) => m.copyWith(titleSort: v)),
-            ),
-            if (m.title.trim().isNotEmpty || mixed.contains(MetadataField.title) || original != null)
-              _Alternates(
-                items: m.altTitles,
-                main: main,
-                required: required,
-                original: original,
-                noun: 'Título',
-                hint: _hint(MetadataField.altTitles),
-                requiredError: !mixed.contains(MetadataField.altTitles),
-                showRequired: m.title.trim().isNotEmpty || mixed.contains(MetadataField.title),
-                onChanged: (v) => update((m) => m.copyWith(altTitles: v)),
-              ),
             ToggleField(
               label: 'Volumen único',
               value: m.standalone,
-              helper: mixed.contains(MetadataField.standalone) ? mixedValuesHint : 'No pertenece a ninguna serie: no lleva serie ni número de volumen.',
+              helper: mixed.contains(MetadataField.standalone) ? mixedValuesHint : 'No pertenece a ninguna serie: no lleva serie ni número de volumen. Con serie, el título se rellena a partir de ella.',
               onChanged: (v) => update((m) => m.copyWith(standalone: v)),
             ),
             if (!m.standalone || mixed.contains(MetadataField.standalone))
@@ -234,7 +201,7 @@ class MetadataForm extends StatelessWidget {
                     hint: _hint(MetadataField.series),
                     floatLabel: _float(MetadataField.series),
                     error: m.series.trim().isEmpty && !mixed.contains(MetadataField.series) && !mixed.contains(MetadataField.standalone) ? 'Obligatoria salvo en un volumen único' : null,
-                    onChanged: (v) => update((m) => m.copyWith(series: v, seriesLang: main, altSeries: m.series.trim().isNotEmpty ? m.altSeries : withOriginalLanguage(m.altSeries, original))),
+                    onChanged: (v) => update((m) => m.copyWith(series: v, seriesLang: main, title: multiple ? m.title : followSeries(m.title, m.series, v), titleLang: multiple ? m.titleLang : main, altSeries: m.series.trim().isNotEmpty ? m.altSeries : withOriginalLanguage(m.altSeries, original))),
                   ),
                   AppTextField(
                     label: 'Volumen',
@@ -263,8 +230,34 @@ class MetadataForm extends StatelessWidget {
                 noun: 'Serie',
                 hint: _hint(MetadataField.altSeries),
                 requiredError: !mixed.contains(MetadataField.altSeries),
-                onChanged: (v) => update((m) => m.copyWith(altSeries: v)),
+                onChanged: (v) => update((m) => m.copyWith(altSeries: v, altTitles: multiple ? m.altTitles : followSeriesAlternates(m.altTitles, m.altSeries, v))),
               ),
+            AppTextField(
+              key: ValueKey('title-$main'),
+              label: 'Título en ${languageName(main)}',
+              value: m.title,
+              hint: _hint(MetadataField.title, 'Nombre de la novela - Volumen 01 [SIGLAS]'),
+              floatLabel: _float(MetadataField.title),
+              error: m.title.trim().isEmpty && !mixed.contains(MetadataField.title) ? 'Obligatorio' : null,
+              onChanged: (v) => update((m) => m.copyWith(title: v, titleLang: main)),
+            ),
+            if (m.title.trim().isNotEmpty || mixed.contains(MetadataField.title) || original != null)
+              _Alternates(
+                items: m.altTitles,
+                main: main,
+                required: required,
+                original: original,
+                noun: 'Título',
+                hint: _hint(MetadataField.altTitles),
+                requiredError: !mixed.contains(MetadataField.altTitles),
+                showRequired: m.title.trim().isNotEmpty || mixed.contains(MetadataField.title),
+                onChanged: (v) => update((m) => m.copyWith(altTitles: v)),
+              ),
+            _TitleSortField(
+              value: m.titleSort,
+              hint: mixed.contains(MetadataField.titleSort) ? mixedValuesHint : null,
+              onChanged: (v) => update((m) => m.copyWith(titleSort: v)),
+            ),
           ],
         ),
         FormSection(

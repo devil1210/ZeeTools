@@ -721,5 +721,7 @@ List<CreditLine> creditLines(List<Actor> actors) {
     }
     separated = a.separated;
   }
-  return [for (final l in lines) (label: l.label, names: l.names.join(', '), separated: l.separated)];
+  // «A, B y C».
+  String joined(List<String> names) => names.length < 2 ? names.join() : '${names.sublist(0, names.length - 1).join(', ')} y ${names.last}';
+  return [for (final l in lines) (label: l.label, names: joined(l.names), separated: l.separated)];
 }
