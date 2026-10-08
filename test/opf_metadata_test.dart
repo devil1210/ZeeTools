@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zeetools/features/epub_templater/data/epub_template_builder.dart';
 import 'package:zeetools/features/epub_templater/data/opf_metadata.dart';
 import 'package:zeetools/features/epub_templater/domain/book_metadata.dart';
 import 'package:zeetools/features/epub_templater/domain/marc_relator.dart';
@@ -116,6 +117,20 @@ void main() {
     expect(OpfMetadata(web).read().originalSource, 'https://ncode.syosetu.com/n3009bk');
     expect(m.copyWith(bookType: 'Novela').amazonStore, AmazonStore.com);
     expect(m.amazonStore, AmazonStore.jp);
+  });
+
+  test('el traductor a otro idioma que el del libro no va al OPF, solo a los créditos', () {
+    final m = OpfMetadata(_legacyOpf).read().copyWith(actors: const [
+      Actor(name: 'Asato Asato', roles: [MarcRelator.aut]),
+      Actor(name: 'J-Novel Club', roles: [MarcRelator.trl], fromLang: 'ja', toLang: 'en', credited: false),
+      Actor(name: 'Mark', roles: [MarcRelator.trl, MarcRelator.pfr], toLang: 'es'),
+      Actor(name: 'Sin destino', roles: [MarcRelator.trl]),
+    ]);
+    final written = OpfMetadata(_legacyOpf).write(_legacyOpf, m, now: DateTime.utc(2026));
+    expect(written, isNot(contains('J-Novel Club')));
+    expect(written, contains('>Mark</dc:contributor>'));
+    expect(written, contains('>Sin destino</dc:contributor>'));
+    expect([for (final l in creditLines(m.actors, bookLanguage: 'es')) l.names], ['Asato Asato', 'J-Novel Club', 'Mark', 'Sin destino']);
   });
 
   test('descarta la fecha indefinida de calibre', () {

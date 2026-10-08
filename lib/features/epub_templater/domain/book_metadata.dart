@@ -57,6 +57,16 @@ extension ActorX on Actor {
 
   bool get isTranslator => roles.contains(MarcRelator.trl);
 
+  // Tradujo a otro idioma que el del libro (p. ej. del japonés al inglés en un libro en español): no es traductor
+  // de este libro, así que solo figura en los créditos.
+  bool translatesToOther(String bookLanguage) {
+    String base(String lang) => lang.trim().toLowerCase().split('-').first;
+    return isTranslator && toLang.trim().isNotEmpty && base(toLang) != base(bookLanguage);
+  }
+
+  // Funciones que se escriben en el OPF.
+  List<MarcRelator> opfRoles(String bookLanguage) => translatesToOther(bookLanguage) ? roles.where((r) => r != MarcRelator.trl).toList() : roles;
+
   // El primer nombre en una escritura original, el único que se edita y se muestra.
   LocalizedText? get scriptName => altNames.where((t) => scriptedLanguages.any((o) => o.name == t.lang.trim().toLowerCase()) && t.text.trim().isNotEmpty).firstOrNull;
 }

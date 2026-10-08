@@ -274,6 +274,7 @@ class MetadataForm extends StatelessWidget {
                 onChanged: onChanged,
                 controls: controls,
                 showCredits: showCredits,
+                bookLanguage: m.language,
                 canSeparate: actor.separated || separators < maxCreditSeparators,
                 defaultScript: original != null && original.scripted ? original : OriginalLanguage.ja,
               ),
@@ -528,12 +529,13 @@ class _TitleSortFieldState extends State<_TitleSortField> {
 }
 
 class _ActorEditor extends StatefulWidget {
-  const _ActorEditor({required this.actor, required this.onChanged, required this.controls, required this.showCredits, required this.canSeparate, required this.defaultScript});
+  const _ActorEditor({required this.actor, required this.onChanged, required this.controls, required this.showCredits, required this.bookLanguage, required this.canSeparate, required this.defaultScript});
 
   final Actor actor;
   final ValueChanged<Actor> onChanged;
   final Widget controls;
   final bool showCredits;
+  final String bookLanguage;
   // Los créditos admiten como mucho [maxCreditSeparators] líneas en blanco.
   final bool canSeparate;
   // Escritura que se propone mientras la persona no tiene nombre en una.
@@ -575,6 +577,7 @@ class _ActorEditorState extends State<_ActorEditor> {
   Widget build(BuildContext context) {
     final actor = widget.actor;
     final scriptText = actor.scriptName?.text ?? '';
+    final otherLanguage = actor.translatesToOther(widget.bookLanguage);
     return Card.outlined(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -673,15 +676,19 @@ class _ActorEditorState extends State<_ActorEditor> {
                 children: [
                   ToggleField(
                     label: 'En los créditos',
-                    value: actor.credited,
-                    helper: actor.roles.contains(MarcRelator.dst) ? 'Entre paréntesis tras el maquetador.' : null,
-                    onChanged: (v) => widget.onChanged(actor.copyWith(credited: v)),
+                    value: actor.credited || otherLanguage,
+                    helper: otherLanguage
+                        ? 'Solo en los créditos: no tradujo al idioma del libro.'
+                        : actor.roles.contains(MarcRelator.dst)
+                        ? 'Entre paréntesis tras el maquetador.'
+                        : null,
+                    onChanged: otherLanguage ? null : (v) => widget.onChanged(actor.copyWith(credited: v)),
                   ),
                   ToggleField(
                     label: 'Línea en blanco después',
                     value: actor.separated,
                     helper: widget.canSeparate ? null : 'Ya hay $maxCreditSeparators.',
-                    onChanged: actor.credited && widget.canSeparate ? (v) => widget.onChanged(actor.copyWith(separated: v)) : null,
+                    onChanged: (actor.credited || otherLanguage) && widget.canSeparate ? (v) => widget.onChanged(actor.copyWith(separated: v)) : null,
                   ),
                   AppTextField(
                     label: 'Enlace',

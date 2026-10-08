@@ -81,12 +81,12 @@ void writeOpfMetadata(StringBuffer b, BookMetadata m, {required DateTime now}) {
   b.writeln('    <dc:language>${xmlEscape(lang)}</dc:language>');
   if (m.date.trim().isNotEmpty) b.writeln('    <dc:date>${xmlEscape(m.date.trim())}</dc:date>');
 
-  final people = m.actors.where((a) => a.name.trim().isNotEmpty && a.roles.isNotEmpty);
+  final people = m.actors.where((a) => a.name.trim().isNotEmpty && a.opfRoles(lang).isNotEmpty);
   for (final (creator, element, prefix) in const [(true, 'dc:creator', 'creator'), (false, 'dc:contributor', 'contrib')]) {
     for (final (i, actor) in people.where((a) => a.isCreator == creator).indexed) {
       final id = '$prefix${(i + 1).toString().padLeft(2, '0')}';
       b.writeln('    <$element id="$id">${xmlEscape(actor.name.trim())}</$element>');
-      for (final role in actor.roles) {
+      for (final role in actor.opfRoles(lang)) {
         meta('role', role.name, refines: id, scheme: 'marc:relators');
       }
       if (actor.fileAs.trim().isNotEmpty) meta('file-as', actor.fileAs.trim(), refines: id);
