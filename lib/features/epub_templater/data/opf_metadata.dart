@@ -86,8 +86,8 @@ void writeOpfMetadata(StringBuffer b, BookMetadata m, {required DateTime now}) {
     for (final (i, actor) in people.where((a) => a.isCreator == creator).indexed) {
       final id = '$prefix${(i + 1).toString().padLeft(2, '0')}';
       b.writeln('    <$element id="$id">${xmlEscape(actor.name.trim())}</$element>');
-      for (final role in actor.opfRoles(lang)) {
-        meta('role', role.name, refines: id, scheme: 'marc:relators');
+      for (final code in {for (final role in actor.opfRoles(lang)) role.code}) {
+        meta('role', code, refines: id, scheme: 'marc:relators');
       }
       if (actor.fileAs.trim().isNotEmpty) meta('file-as', actor.fileAs.trim(), refines: id);
       alternates(id, lang, actor.altNames);

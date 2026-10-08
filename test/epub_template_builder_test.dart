@@ -115,7 +115,7 @@ void main() {
             Actor(name: 'js06', roles: [MarcRelator.trl], fromLang: 'ja', toLang: 'en'),
             Actor(name: 'Lestat', roles: [MarcRelator.trl], toLang: 'es'),
             Actor(name: 'Kaiser', roles: [MarcRelator.pfr]),
-            Actor(name: 'Yen Press', roles: [MarcRelator.edt]),
+            Actor(name: 'Yen Press', roles: [MarcRelator.imageEditor]),
             Actor(name: 'Su-chan', roles: [MarcRelator.hnr], separated: true),
             Actor(name: 'Oculto', roles: [MarcRelator.ctb], credited: false),
             Actor(name: 'Zack', roles: [MarcRelator.mrk]),
@@ -140,6 +140,10 @@ void main() {
     );
     expect(title, isNot(contains('Oculto')));
     expect(title, contains('<h2 class="subtitle sigil_not_in_toc" role="doc-subtitle">Volumen 03<br/><small>[Novela ligera]</small></h2>'));
+    // La edición de imágenes no tiene código MARC propio: en el OPF es un colaborador.
+    final opf = files['OEBPS/content.opf']!;
+    final yenPress = RegExp(r'<dc:contributor id="(\w+)">Yen Press</dc:contributor>').firstMatch(opf)!.group(1);
+    expect(opf, contains('<meta refines="#$yenPress" property="role" scheme="marc:relators">ctb</meta>'));
   });
 
   test('varias personas con la misma función comparten línea: «A, B y C»', () {

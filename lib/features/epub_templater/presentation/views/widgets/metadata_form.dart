@@ -615,7 +615,7 @@ class _ActorEditorState extends State<_ActorEditor> {
                 for (final role in actor.roles)
                   TagPill(
                     label: role.label,
-                    tooltip: 'marc:relators ${role.name}',
+                    tooltip: 'marc:relators ${role.code}',
                     onRemove: actor.roles.length == 1 ? null : () => widget.onChanged(actor.copyWith(roles: [...actor.roles]..remove(role))),
                   ),
                 PopupMenuButton<MarcRelator>(
@@ -624,7 +624,7 @@ class _ActorEditorState extends State<_ActorEditor> {
                   onSelected: (role) => widget.onChanged(actor.copyWith(roles: [...actor.roles, role])),
                   itemBuilder: (_) => [
                     for (final role in MarcRelator.values)
-                      if (!actor.roles.contains(role)) PopupMenuItem(value: role, child: Text('${role.label} (${role.name})')),
+                      if (!actor.roles.contains(role)) PopupMenuItem(value: role, child: Text('${role.label} (${role.code})')),
                   ],
                 ),
               ],
