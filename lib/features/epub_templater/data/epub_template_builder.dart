@@ -490,15 +490,42 @@ class EpubTemplateBuilder {
       if (listed && (label != text || s.subtitle.trim().isNotEmpty)) 'title="${_esc(label)}"',
       if (s.kind.layout == SectionLayout.titlePage) 'epub:type="fulltitle"',
     ];
-    final subtitle = s.subtitle.trim().isEmpty ? '' : '<br/><small>${_esc(s.subtitle.trim())}</small>';
     final level = s.level.clamp(1, 6);
+    if (s.kind.layout == SectionLayout.titlePage) {
+      // Título y subtítulo de la obra, cada uno en su línea y con su semántica.
+      final subtitle = s.subtitle.trim();
+      b
+        ..writeln('    <h$level ${attrs.join(' ')}>')
+        ..writeln('      <span epub:type="title">${_esc(text)}</span>${subtitle.isEmpty ? '' : '<br/>'}');
+      if (subtitle.isNotEmpty) b.writeln('      <span class="small" epub:type="subtitle">${_esc(subtitle)}</span>');
+      b.writeln('    </h$level>');
+      return;
+    }
+    final subtitle = s.subtitle.trim().isEmpty ? '' : '<br/><small>${_esc(s.subtitle.trim())}</small>';
     b.writeln('    <h$level ${attrs.join(' ')}>${_esc(text)}$subtitle</h$level>');
+  }
+
+  // El contenido no se edita aquí: la sección de notas lleva tres de ejemplo y la primera sección de texto del cuerpo, sus llamadas.
+  TemplateSection? get _notesSection => project.sections.where((s) => s.kind.layout == SectionLayout.notes).firstOrNull;
+
+  TemplateSection? get _noteCallsSection {
+    if (_notesSection == null) return null;
+    final text = project.sections.where((s) => s.kind.layout == SectionLayout.text);
+    // Las llamadas van en el cuerpo del libro (prólogo o primer capítulo) si lo hay.
+    return text.where((s) => s.matter == BookMatter.body).firstOrNull ?? text.firstOrNull;
+  }
+
+  void _writeNoteCalls(StringBuffer b) {
+    final notes = _sectionFiles[_notesSection]!.first;
+    String call(int n) => '<a href="$notes#nt$n" id="rf$n" epub:type="noteref" role="doc-noteref"><sup>${_noteNumber(n)}</sup></a>';
+    b.writeln('    <p>Texto con una nota${call(1)}, otra${call(2)} y una más${call(3)}.</p>');
   }
 
   void _writeContent(StringBuffer b, TemplateSection s, int page) {
     switch (s.kind.layout) {
       case SectionLayout.text:
         _comment(b, 'Aquí va el contenido');
+        if (s == _noteCallsSection) _writeNoteCalls(b);
       case SectionLayout.cover:
         final name = s.images.map((x) => _imageNames[x]).nonNulls.firstOrNull;
         if (name == null) {
@@ -544,14 +571,16 @@ class EpubTemplateBuilder {
           b.writeln('    <figure class="logo"><img class="space-3" src="../Images/$name" alt="${_esc('Logo ${p.basenameWithoutExtension(name)}')}"/></figure>');
         }
       case SectionLayout.notes:
-        if (!project.guideComments) break;
-        b
-          ..writeln('    <!-- Formato de cada nota; la llamada en el texto es:')
-          ..writeln('    <a href="notas.xhtml#nt1" id="rf1" epub:type="noteref" role="doc-noteref"><sup>&#10094;01&#10095;</sup></a>')
-          ..writeln('    <aside class="note" epub:type="endnote" id="nt1">')
-          ..writeln('      <p><a href="capitulo01.xhtml#rf1" role="doc-backlink"><sup>&#10094;01&#10095;</sup></a> Texto de la nota.</p>')
-          ..writeln('    </aside>')
-          ..writeln('    -->');
+        // Una lista: los lectores la muestran en la página y abren cada elemento en la ventana de la nota.
+        final calls = _noteCallsSection;
+        final back = calls == null ? null : _sectionFiles[calls]!.last;
+        _comment(b, 'Una nota por elemento; su número enlaza de vuelta a la llamada del texto');
+        b.writeln('    <ol class="notes">');
+        for (var n = 1; n <= 3; n++) {
+          final number = '<sup>${_noteNumber(n)}</sup>';
+          b.writeln('      <li id="nt$n"><p>${back == null ? number : '<a href="$back#rf$n" role="doc-backlink">$number</a>'} Texto de la nota.</p></li>');
+        }
+        b.writeln('    </ol>');
     }
   }
 
@@ -667,6 +696,8 @@ const _appleOptionsXml = '''<?xml version="1.0" encoding="UTF-8"?>
   </platform>
 </display_options>
 ''';
+
+String _noteNumber(int n) => '&#10094;${n.toString().padLeft(2, '0')}&#10095;';
 
 const _languageAbbreviations = {'ja': 'jap', 'en': 'ing', 'es': 'esp', 'ko': 'cor', 'zh': 'chi'};
 

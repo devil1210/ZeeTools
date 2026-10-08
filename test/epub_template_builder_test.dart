@@ -159,6 +159,24 @@ void main() {
     expect(followSeriesAlternates(const [LocalizedText(lang: 'es', text: 'La serie - Volumen 03')], const [LocalizedText(lang: 'es', text: 'La serie')], const [LocalizedText(lang: 'es', text: 'La saga')]), const [LocalizedText(lang: 'es', text: 'La saga - Volumen 03')]);
   });
 
+  test('la página de título separa el título y el subtítulo de la obra en líneas con su semántica', () {
+    final sections = [TemplateSection.of(SectionKind.titlePage).copyWith(title: 'Mitsuba', subtitle: 'El inicio')];
+    final title = _build(_project(sections: sections))['OEBPS/Text/titulo.xhtml']!;
+    expect(title, contains('epub:type="fulltitle">\n      <span epub:type="title">Mitsuba</span><br/>\n      <span class="small" epub:type="subtitle">El inicio</span>\n    </h1>'));
+    expect(RegExp(r'<h1[\s\S]*?</h1>').firstMatch(title)!.group(0), isNot(contains('<small>')));
+  });
+
+  test('las notas son una lista con tres de ejemplo enlazadas con sus llamadas en la primera sección de texto', () {
+    final sections = [TemplateSection.of(SectionKind.cover), TemplateSection.of(SectionKind.chapter), TemplateSection.of(SectionKind.endnotes)];
+    final files = _build(_project(sections: sections));
+    final notes = files['OEBPS/Text/notas.xhtml']!;
+    expect(notes, contains('<ol class="notes">'));
+    expect(notes, contains('<li id="nt1"><p><a href="capitulo01.xhtml#rf1" role="doc-backlink"><sup>&#10094;01&#10095;</sup></a> Texto de la nota.</p></li>'));
+    expect(notes, contains('id="nt3"'));
+    expect(notes, isNot(contains('<aside')));
+    expect(files['OEBPS/Text/capitulo01.xhtml'], contains('<a href="notas.xhtml#nt2" id="rf2" epub:type="noteref" role="doc-noteref"><sup>&#10094;02&#10095;</sup></a>'));
+  });
+
   test('autor, editorial, fecha, demografía, géneros y serie son obligatorios', () {
     Iterable<String> issues(BookMetadata Function(BookMetadata m) edit) => templateIssues(_project(metadata: edit)).map((i) => i.message);
     expect(issues((m) => m.copyWith(actors: const [])), contains('El autor es obligatorio.'));

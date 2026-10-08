@@ -840,6 +840,22 @@ div li {
 .note a {
   text-decoration: none;
 }
+/* Lista de notas: el número de cada una es el enlace de vuelta, no el de la lista */
+ol.notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+ol.notes > li {
+  margin: 0 0 1em;
+  margin: 0 0 1lh;
+}
+.notes p {
+  text-indent: 0;
+}
+.notes a {
+  text-decoration: none;
+}
 a sup {
   font-weight: bold;
 }
