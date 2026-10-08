@@ -106,8 +106,8 @@ class _SeriesListWidgetState extends State<SeriesListWidget> {
                 'publisher': pubCtrl.text.trim(),
                 'description': descCtrl.text.trim(),
               };
-              final ok = await context.read<ZeepubEditorialCubit>().saveSeries(series.seriesHash, payload);
-              if (ok && ctx.mounted) {
+              await context.read<ZeepubEditorialCubit>().saveSeries(series.seriesHash, payload);
+              if (ctx.mounted) {
                 Navigator.of(ctx).pop();
               }
             },

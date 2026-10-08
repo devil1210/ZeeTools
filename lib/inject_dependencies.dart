@@ -45,7 +45,6 @@ Future<void> injectDependencies() async {
   getIt.registerLazySingleton<SearchReplaceSettingsRepository>(() => SearchReplaceSettingsRepositoryImpl(getIt()));
   getIt.registerLazySingleton<NativeToolsRepository>(() => NativeToolsRepositoryImpl(p.join(supportDir.path, 'tools')));
   getIt.registerLazySingleton<ImageOptimizerSettingsRepository>(() => ImageOptimizerSettingsRepositoryImpl(getIt()));
-  // Caché de EPUBs independiente de la de búsqueda y reemplazo.
   getIt.registerLazySingleton<ImageOptimizerRepository>(() => ImageOptimizerRepositoryImpl(EpubRepositoryImpl(), getIt(), ImageOptimizerEngine()));
   getIt.registerLazySingleton<EpubTemplaterRepository>(() => EpubTemplaterRepositoryImpl());
   getIt.registerLazySingleton<TemplateProfilesRepository>(() => TemplateProfilesRepositoryImpl(getIt(), p.join(supportDir.path, 'perfiles')));
@@ -55,7 +54,7 @@ Future<void> injectDependencies() async {
 
   // ZeePub Editorial
   getIt.registerLazySingleton<ZeepubApiClient>(() => ZeepubApiClient());
-  getIt.registerLazySingleton<ZeepubEditorialRepository>(() => ZeepubEditorialRepositoryImpl(getIt(), getIt()));
+  getIt.registerLazySingleton<ZeepubEditorialRepository>(() => ZeepubEditorialRepository(client: getIt(), prefs: getIt()));
 
   // Cubits
   getIt.registerFactory<SearchReplaceCubit>(() => SearchReplaceCubit(getIt(), getIt(), getIt()));
@@ -64,7 +63,7 @@ Future<void> injectDependencies() async {
   getIt.registerFactory<EpubTemplaterCubit>(() => EpubTemplaterCubit(getIt(), getIt(), getIt(), getIt()));
   getIt.registerFactory<MetadataEditorCubit>(() => MetadataEditorCubit(getIt()));
   getIt.registerFactory<EpubMigratorCubit>(() => EpubMigratorCubit(getIt()));
-  getIt.registerFactory<ZeepubEditorialCubit>(() => ZeepubEditorialCubit(getIt()));
+  getIt.registerFactory<ZeepubEditorialCubit>(() => ZeepubEditorialCubit(repository: getIt()));
 
   getIt.registerLazySingleton<ValueNotifier<List<SpeedDialAction>>>(() => ValueNotifier<List<SpeedDialAction>>([]));
 }

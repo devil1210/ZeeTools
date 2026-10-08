@@ -1,12 +1,17 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
 import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_cubit.dart';
 import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_state.dart';
-import 'widgets/series_list_widget.dart';
-import 'widgets/telegram_publish_dialog.dart';
-import 'widgets/volume_card.dart';
+import 'widgets/calendar_tab.dart';
+import 'widgets/posts_tab.dart';
+import 'widgets/series_card.dart';
+import 'widgets/series_detail_view.dart';
+import 'widgets/templates_tab.dart';
+import 'widgets/volume_detail_view.dart';
+import 'widgets/workgroup_detail_view.dart';
+import 'widgets/workgroups_tab.dart';
+import 'zeepub_publisher_view.dart';
 import 'zeepub_volume_edit_view.dart';
 
 class ZeepubEditorialView extends StatefulWidget {
@@ -17,13 +22,25 @@ class ZeepubEditorialView extends StatefulWidget {
 }
 
 class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-  final TextEditingController _searchController = TextEditingController();
+  late TabController _tabController;
+  final _seriesSearchController = TextEditingController();
+  final _scrollController = ScrollController();
+
+  static const _sortOptions = [
+    {'id': 'name_asc', 'label': 'Título (A - Z)'},
+    {'id': 'name_desc', 'label': 'Título (Z - A)'},
+    {'id': 'updated_desc', 'label': 'Más Recientes'},
+    {'id': 'books_desc', 'label': 'Más Volúmenes'},
+    {'id': 'downloads_desc', 'label': 'Más Descargados'},
+    {'id': 'rating_desc', 'label': 'Mejor Valorados'},
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
+    _scrollController.addListener(_onScroll);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ZeepubEditorialCubit>().init();
     });
@@ -32,70 +49,152 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
   @override
   void dispose() {
     _tabController.dispose();
-    _searchController.dispose();
+    _seriesSearchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _showConfigServerDialog(BuildContext context, String currentUrl) {
-    final urlCtrl = TextEditingController(text: currentUrl);
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll <= 500) {
+      context.read<ZeepubEditorialCubit>().loadMoreSeries();
+    }
+  }
+
+  void _showConfigServerDialog(BuildContext context, String currentUrl, String currentTgId, double currentScale) {
+    final urlController = TextEditingController(text: currentUrl);
+    final tgIdController = TextEditingController(text: currentTgId);
+    final cubit = context.read<ZeepubEditorialCubit>();
+    double selectedScale = currentScale;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.dns_rounded),
+            Icon(Icons.tune_rounded),
             SizedBox(width: 8),
-            Text('Conexión con ZeePub Bot'),
+            Text('Ajustes del Servidor ZeePub'),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Ingresa la URL del backend de ZeePub (local o VPS).',
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: urlCtrl,
-              decoration: const InputDecoration(
-                labelText: 'URL Base del Servidor',
-                hintText: 'http://localhost:8001 o https://zeepubs.com',
-                prefixIcon: Icon(Icons.link),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: urlController,
+                decoration: const InputDecoration(
+                  labelText: 'URL del Servidor (VPS / Local)',
+                  hintText: 'http://176.223.137.101:8001',
+                  helperText: 'Dirección IP o dominio del backend de ZeePub con su puerto.',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.dns_rounded),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: tgIdController,
+                decoration: const InputDecoration(
+                  labelText: 'ID de Telegram (Admin / Staff)',
+                  hintText: '133994080',
+                  helperText: 'Tu ID numérico de Telegram para identificarte como Admin/Staff provisoriamente.',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.badge_rounded),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Divider(height: 1),
+              const SizedBox(height: 14),
+              StatefulBuilder(
+                builder: (context, setLocalState) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.photo_size_select_actual_outlined, size: 16, color: Color(0xFF818CF8)),
+                              SizedBox(width: 8),
+                              Text(
+                                'Escala de Portadas',
+                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${(selectedScale * 100).toInt()}%',
+                              style: const TextStyle(
+                                color: Color(0xFF38BDF8),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: const Color(0xFF38BDF8),
+                          inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+                          thumbColor: const Color(0xFF38BDF8),
+                          overlayColor: const Color(0xFF38BDF8).withValues(alpha: 0.2),
+                          trackHeight: 3,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                        ),
+                        child: Slider(
+                          value: selectedScale,
+                          min: 0.70,
+                          max: 1.50,
+                          divisions: 16,
+                          onChanged: (val) {
+                            setLocalState(() => selectedScale = val);
+                            cubit.setCoverScale(val);
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Cancelar'),
           ),
-          FilledButton(
+          FilledButton.icon(
+            icon: const Icon(Icons.save_rounded, size: 18),
+            label: const Text('Guardar y Conectar'),
             onPressed: () {
-              final newUrl = urlCtrl.text.trim();
-              if (newUrl.isNotEmpty) {
-                context.read<ZeepubEditorialCubit>().updateBaseUrl(newUrl);
-              }
+              final newUrl = urlController.text.trim();
+              final newTgId = tgIdController.text.trim();
               Navigator.of(ctx).pop();
+              cubit.saveServerConfig(url: newUrl, tgId: newTgId);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Configuración guardada. Conectando con el servidor...'),
+                  backgroundColor: Colors.blue,
+                ),
+              );
             },
-            child: const Text('Guardar y Reconectar'),
           ),
         ],
-      ),
-    );
-  }
-
-  void _openPublishModal(BuildContext context, ZeepubVolume volume, ZeepubEditorialState state) {
-    showDialog(
-      context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: context.read<ZeepubEditorialCubit>(),
-        child: TelegramPublishDialog(
-          volume: volume,
-          baseUrl: state.baseUrl,
-        ),
       ),
     );
   }
@@ -103,98 +202,130 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-
     return BlocConsumer<ZeepubEditorialCubit, ZeepubEditorialState>(
-      listener: (BuildContext context, ZeepubEditorialState state) {
+      listener: (context, state) {
         if (state.errorMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              backgroundColor: cs.error,
               content: Text(state.errorMessage!),
+              backgroundColor: cs.error,
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: cs.onError,
+                onPressed: () => context.read<ZeepubEditorialCubit>().clearNotifications(),
+              ),
             ),
           );
           context.read<ZeepubEditorialCubit>().clearNotifications();
-        } else if (state.successMessage != null) {
+        }
+        if (state.successMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              backgroundColor: Colors.green.shade700,
               content: Text(state.successMessage!),
+              backgroundColor: Colors.green.shade700,
             ),
           );
           context.read<ZeepubEditorialCubit>().clearNotifications();
         }
       },
-      builder: (BuildContext context, ZeepubEditorialState state) {
+      builder: (context, state) {
         final cubit = context.read<ZeepubEditorialCubit>();
 
-        // FULL PAGE EDITOR: If an active volume is selected, render full-page editor
-        if (state.activeVolume != null) {
-          return ZeepubVolumeEditView(
-            volume: state.activeVolume!,
-            workgroups: state.workgroups,
+        // 1. Modal/Overlay: Publisher Screen
+        if (state.publishingVolume != null) {
+          return ZeepubPublisherView(
+            volume: state.publishingVolume!,
             baseUrl: state.baseUrl,
-            onBack: () => cubit.closeVolumeDetail(),
+            onBack: () => cubit.closePublisher(),
           );
         }
 
+        // 2. Modal/Overlay: Volume Editor Screen
+        if (state.activeVolume != null) {
+          return ZeepubVolumeEditView(
+            volume: state.activeVolume!,
+            volumes: state.volumes,
+            seriesList: state.seriesList,
+            workgroups: state.workgroups,
+            baseUrl: state.baseUrl,
+            onBack: () => cubit.closeVolumeEdit(),
+          );
+        }
+
+        // 3. Navigation: Full Volume Detail Screen (Nivel 3)
+        if (state.activeVolumeDetail != null) {
+          return VolumeDetailView(volume: state.activeVolumeDetail!);
+        }
+
+        // 4. Navigation: Full Series Detail Screen (Nivel 2)
+        if (state.activeSeriesDetail != null) {
+          return SeriesDetailView(series: state.activeSeriesDetail!);
+        }
+
+        // 5. Navigation: Workgroup Detail & Auditoria Screen (Nivel 2)
+        if (state.activeWorkgroupDetail != null) {
+          return WorkgroupDetailView(detail: state.activeWorkgroupDetail!, initialTab: state.workgroupDetailInitialTab);
+        }
+
+        // 6. Root Editorial Screen
         return Scaffold(
           appBar: AppBar(
             title: Row(
               children: [
-                const Icon(Icons.auto_stories_rounded),
+                const Icon(Icons.layers_rounded, color: Color(0xFF818CF8)),
                 const SizedBox(width: 10),
-                const Text('Consola Editorial ZeePub'),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: state.errorMessage != null ? Colors.red : Colors.green,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        state.baseUrl.replaceFirst('http://', '').replaceFirst('https://', ''),
-                        style: tt.labelSmall?.copyWith(color: cs.onPrimaryContainer),
-                      ),
-                    ],
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Catálogo Editorial ZeePub', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+                    Text(
+                      'Exploración completa de la biblioteca con navegación tipo árbol (${state.seriesTotalCount} series indexadas)',
+                      style: TextStyle(color: cs.onSurfaceVariant.withValues(alpha: 0.8), fontSize: 11),
+                    ),
+                  ],
                 ),
               ],
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.settings_ethernet),
-                tooltip: 'Configurar URL del servidor',
-                onPressed: () => _showConfigServerDialog(context, state.baseUrl),
+                icon: const Icon(Icons.tune_rounded),
+                tooltip: 'Ajustes del Servidor',
+                onPressed: () => _showConfigServerDialog(
+                  context,
+                  state.baseUrl,
+                  state.telegramUserId,
+                  state.coverScale,
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Recargar datos',
-                onPressed: state.loading ? null : () => cubit.init(),
-              ),
+              const SizedBox(width: 8),
             ],
             bottom: TabBar(
               controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              indicatorColor: const Color(0xFF6366F1),
+              labelColor: const Color(0xFF818CF8),
+              unselectedLabelColor: cs.onSurfaceVariant,
               tabs: [
                 Tab(
-                  icon: const Icon(Icons.library_books),
-                  text: 'Volúmenes (${state.totalVolumes})',
+                  icon: const Icon(Icons.layers_outlined, size: 16),
+                  text: 'Catálogo (${state.seriesTotalCount})',
                 ),
                 Tab(
-                  icon: const Icon(Icons.category),
-                  text: 'Series Canónicas (${state.totalSeries})',
+                  icon: const Icon(Icons.groups_outlined, size: 16),
+                  text: 'Fansubs (${state.workgroups.length})',
+                ),
+                Tab(
+                  icon: const Icon(Icons.description_outlined, size: 16),
+                  text: 'Plantillas (${state.templates.length})',
+                ),
+                Tab(
+                  icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                  text: 'Agenda (${state.queue.length})',
+                ),
+                Tab(
+                  icon: const Icon(Icons.history_outlined, size: 16),
+                  text: 'Historial (${state.posts.length})',
                 ),
               ],
             ),
@@ -202,197 +333,187 @@ class _ZeepubEditorialViewState extends State<ZeepubEditorialView> with SingleTi
           body: TabBarView(
             controller: _tabController,
             children: [
-              // TAB 1: VOLUMES
-              Column(
-                children: [
-                  // Search & Filters Header
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Search Row
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                decoration: InputDecoration(
-                                  hintText: 'Buscar por título, serie, autor, traductor, archivo...',
-                                  prefixIcon: const Icon(Icons.search),
-                                  suffixIcon: _searchController.text.isNotEmpty
-                                      ? IconButton(
-                                          icon: const Icon(Icons.clear),
-                                          onPressed: () {
-                                            _searchController.clear();
-                                            cubit.setSearchQuery('');
-                                          },
-                                        )
-                                      : null,
-                                ),
-                                onSubmitted: (val) => cubit.setSearchQuery(val),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            FilledButton(
-                              onPressed: () => cubit.setSearchQuery(_searchController.text),
-                              child: const Text('Buscar'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Filters Row
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              // Color Filter
-                              FilterChip(
-                                label: const Text('Todos los colores'),
-                                selected: state.selectedColorMode == null,
-                                onSelected: (_) => cubit.setColorFilter(null),
-                              ),
-                              const SizedBox(width: 6),
-                              FilterChip(
-                                label: const Text('🎨 Full Color'),
-                                selected: state.selectedColorMode == 'color',
-                                onSelected: (val) => cubit.setColorFilter(val ? 'color' : null),
-                              ),
-                              const SizedBox(width: 6),
-                              FilterChip(
-                                label: const Text('📖 B/N'),
-                                selected: state.selectedColorMode == 'bw',
-                                onSelected: (val) => cubit.setColorFilter(val ? 'bw' : null),
-                              ),
-                              const SizedBox(width: 12),
-
-                              // Uncensored Filter
-                              FilterChip(
-                                label: const Text('🔞 Sin Censura'),
-                                selected: state.filterUncensored == true,
-                                onSelected: (val) => cubit.setUncensoredFilter(val ? true : null),
-                              ),
-                              const SizedBox(width: 12),
-
-                              // Clear filters button
-                              if (state.selectedColorMode != null ||
-                                  state.filterUncensored != null ||
-                                  state.selectedWorkgroupId != null ||
-                                  state.searchQuery.isNotEmpty)
-                                TextButton.icon(
-                                  icon: const Icon(Icons.filter_alt_off, size: 16),
-                                  label: const Text('Limpiar filtros'),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    cubit.loadVolumes(page: 1, query: '', colorMode: null, uncensored: null, workgroupId: null);
-                                  },
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Volumes Content
-                  Expanded(
-                    child: state.loading
-                        ? const Center(child: CircularProgressIndicator())
-                        : state.volumes.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.menu_book_outlined, size: 48, color: cs.onSurfaceVariant),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'No se encontraron volúmenes',
-                                      style: tt.titleMedium?.copyWith(color: cs.onSurfaceVariant),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Prueba ajustando los filtros o realizando otra búsqueda.',
-                                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final crossAxisCount = constraints.maxWidth > 1100
-                                      ? 3
-                                      : constraints.maxWidth > 700
-                                          ? 2
-                                          : 1;
-
-                                  return GridView.builder(
-                                    padding: const EdgeInsets.all(12),
-                                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: crossAxisCount,
-                                      childAspectRatio: 2.5,
-                                      crossAxisSpacing: 10,
-                                      mainAxisSpacing: 10,
-                                    ),
-                                    itemCount: state.volumes.length,
-                                    itemBuilder: (context, index) {
-                                      final vol = state.volumes[index];
-                                      return VolumeCard(
-                                        volume: vol,
-                                        baseUrl: state.baseUrl,
-                                        onEdit: () => cubit.openVolumeDetail(vol.bookHash),
-                                        onPublish: () => _openPublishModal(context, vol, state),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                  ),
-
-                  // Pagination Footer
-                  if (state.totalPages > 1)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                        border: Border(top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.3))),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Página ${state.currentPage} de ${state.totalPages} (${state.totalVolumes} volúmenes)',
-                            style: tt.bodySmall,
-                          ),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.chevron_left),
-                                onPressed: state.currentPage > 1
-                                    ? () => cubit.loadVolumes(page: state.currentPage - 1)
-                                    : null,
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.chevron_right),
-                                onPressed: state.currentPage < state.totalPages
-                                    ? () => cubit.loadVolumes(page: state.currentPage + 1)
-                                    : null,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-
-              // TAB 2: CANONICAL SERIES
-              SeriesListWidget(baseUrl: state.baseUrl),
+              _buildSeriesCatalogTab(context, state, cubit),
+              const ZeepubWorkgroupsTab(),
+              const ZeepubTemplatesTab(),
+              const ZeepubCalendarTab(),
+              const ZeepubPostsTab(),
             ],
           ),
         );
       },
+    );
+  }
+
+  // ==========================================
+  // TAB 1: CATÁLOGO DE SERIES (Exploración / Árbol)
+  // ==========================================
+  Widget _buildSeriesCatalogTab(BuildContext context, ZeepubEditorialState state, ZeepubEditorialCubit cubit) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        // Top Filter & Search Controls
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+          decoration: BoxDecoration(
+            color: cs.surface.withValues(alpha: 0.6),
+            border: Border(bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.2))),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _seriesSearchController,
+                      decoration: InputDecoration(
+                        hintText: 'Buscar serie por título en español, inglés o romaji...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        suffixIcon: _seriesSearchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () {
+                                  _seriesSearchController.clear();
+                                  cubit.loadSeriesCatalog(reset: true, query: '');
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        isDense: true,
+                      ),
+                      onSubmitted: (val) => cubit.loadSeriesCatalog(reset: true, query: val),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 200,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: state.seriesSortBy,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Ordenar por',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        isDense: true,
+                      ),
+                      items: [
+                        for (final opt in _sortOptions)
+                          DropdownMenuItem(value: opt['id'], child: Text(opt['label']!, overflow: TextOverflow.ellipsis)),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) cubit.loadSeriesCatalog(reset: true, sortBy: val);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded),
+                    tooltip: 'Recargar catálogo',
+                    onPressed: () => cubit.loadSeriesCatalog(reset: true),
+                  ),
+                ],
+              ),
+
+            ],
+          ),
+        ),
+
+        // Series Vertical Grid
+        Expanded(
+          child: state.loadingSeries
+              ? const Center(child: CircularProgressIndicator())
+              : state.seriesCatalog.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.layers_clear_outlined, size: 64, color: cs.outlineVariant),
+                          const SizedBox(height: 16),
+                          const Text('No se encontraron series en el catálogo.'),
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Reintentar conexión'),
+                            onPressed: () => cubit.init(),
+                          ),
+                        ],
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 185 * state.coverScale,
+                              childAspectRatio: (185.0 * state.coverScale) /
+                                  ((185.0 * state.coverScale - 18.0) * 1.45 + 105.0),
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
+                            itemCount: state.seriesCatalog.length,
+                            itemBuilder: (context, index) {
+                              final series = state.seriesCatalog[index];
+                              return SeriesCard(
+                                series: series,
+                                baseUrl: state.baseUrl,
+                                onTap: () => cubit.openSeriesDetail(series),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 20),
+                          if (state.loadingMoreSeries)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(20),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          else if (state.seriesCurrentPage < state.seriesTotalPages)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.expand_more_rounded),
+                                  label: Text(
+                                    'Cargar más series (${state.seriesCatalog.length} de ${state.seriesTotalCount})',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                                    side: BorderSide(color: const Color(0xFF6366F1).withValues(alpha: 0.5)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  onPressed: () => cubit.loadMoreSeries(),
+                                ),
+                              ),
+                            )
+                          else if (state.seriesCatalog.isNotEmpty)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 24),
+                                child: Text(
+                                  '✨ Has llegado al final del catálogo (${state.seriesCatalog.length} series)',
+                                  style: TextStyle(
+                                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+        ),
+      ],
     );
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../data/models/zeepub_volume.dart';
-import '../../cubit/zeepub_editorial_cubit.dart';
-import '../../cubit/zeepub_editorial_state.dart';
+import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
+import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_cubit.dart';
+import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_state.dart';
 
 class TelegramPublishDialog extends StatefulWidget {
   final ZeepubVolume volume;
@@ -23,7 +23,7 @@ class _TelegramPublishDialogState extends State<TelegramPublishDialog> {
   bool _isScheduled = false;
   DateTime _scheduledDateTime = DateTime.now().add(const Duration(hours: 1));
   final TextEditingController _captionController = TextEditingController();
-  bool _sendAsFile = true;
+  final bool _sendAsFile = true;
 
   @override
   void dispose() {
@@ -55,22 +55,22 @@ class _TelegramPublishDialogState extends State<TelegramPublishDialog> {
     final cubit = context.read<ZeepubEditorialCubit>();
     final customCaption = _captionController.text.trim().isNotEmpty ? _captionController.text.trim() : null;
 
-    bool ok = false;
     if (_isScheduled) {
-      ok = await cubit.scheduleVolumePublication(
-        widget.volume.bookHash,
-        _scheduledDateTime,
+      await cubit.schedulePublication(
+        bookHash: widget.volume.bookHash,
+        scheduledAtIso: _scheduledDateTime.toIso8601String(),
         customCaption: customCaption,
+        sendAsFile: _sendAsFile,
       );
     } else {
-      ok = await cubit.publishVolumeNow(
-        widget.volume.bookHash,
+      await cubit.publishNow(
+        bookHash: widget.volume.bookHash,
         customCaption: customCaption,
         sendAsFile: _sendAsFile,
       );
     }
 
-    if (ok && mounted) {
+    if (mounted) {
       Navigator.of(context).pop();
     }
   }
@@ -94,7 +94,7 @@ class _TelegramPublishDialogState extends State<TelegramPublishDialog> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.telegram, color: cs.primary, size: 28),
+                      Icon(Icons.send_rounded, color: cs.primary, size: 28),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(

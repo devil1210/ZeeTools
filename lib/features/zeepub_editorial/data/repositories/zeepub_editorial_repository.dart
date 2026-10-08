@@ -1,77 +1,100 @@
-import 'package:shared_preferences/shared_preferences.dart';
+﻿import 'package:shared_preferences/shared_preferences.dart';
 
 import '/features/zeepub_editorial/data/datasources/zeepub_api_client.dart';
 import '/features/zeepub_editorial/data/models/zeepub_ai_suggestion.dart';
+import '/features/zeepub_editorial/data/models/zeepub_channel.dart';
+import '/features/zeepub_editorial/data/models/zeepub_post_item.dart';
+import '/features/zeepub_editorial/data/models/zeepub_queue_item.dart';
 import '/features/zeepub_editorial/data/models/zeepub_series.dart';
+import '/features/zeepub_editorial/data/models/zeepub_template.dart';
 import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
 import '/features/zeepub_editorial/data/models/zeepub_workgroup.dart';
 
-abstract interface class ZeepubEditorialRepository {
-  String getBaseUrl();
-  Future<void> saveBaseUrl(String url);
-
-  Future<({List<ZeepubVolume> items, int total, int page, int totalPages})> getVolumes({
-    int page = 1,
-    int pageSize = 30,
-    String? query,
-    String? seriesId,
-    int? workgroupId,
-    String? colorMode,
-    bool? isUncensored,
-  });
-
-  Future<ZeepubVolume> getVolumeDetail(String bookHash);
-  Future<void> updateVolume(String bookHash, Map<String, dynamic> payload);
-  Future<Map<String, dynamic>> syncVolumeFile(String bookHash);
-
-  Future<({List<ZeepubSeries> items, int total, int page})> getSeriesList({
-    int page = 1,
-    int pageSize = 50,
-    String? query,
-  });
-
-  Future<Map<String, dynamic>> getSeriesDetail(String seriesId);
-  Future<void> updateSeries(String seriesId, Map<String, dynamic> payload);
-
-  Future<List<ZeepubWorkgroup>> getWorkgroups();
-  Future<ZeepubAiSuggestion?> aiSuggestMetadata(String title);
-
-  Future<Map<String, dynamic>> publishNow({
-    required String bookHash,
-    String? customCaption,
-    bool sendAsFile = true,
-  });
-
-  Future<Map<String, dynamic>> schedulePublication({
-    required String bookHash,
-    required String scheduledAtIso,
-    String? customCaption,
-  });
-}
-
-class ZeepubEditorialRepositoryImpl implements ZeepubEditorialRepository {
+class ZeepubEditorialRepository {
   final ZeepubApiClient _client;
-  final SharedPreferences _prefs;
+  final SharedPreferences? _prefs;
 
-  static const _urlKey = 'zeepub_api_base_url';
+  static const _baseUrlKey = 'zeepub_editorial_base_url';
+  static const _telegramIdKey = 'zeepub_editorial_telegram_id';
 
-  ZeepubEditorialRepositoryImpl(this._client, this._prefs) {
-    final savedUrl = _prefs.getString(_urlKey);
-    if (savedUrl != null && savedUrl.isNotEmpty) {
-      _client.setBaseUrl(savedUrl);
+  ZeepubEditorialRepository({
+    required ZeepubApiClient client,
+    SharedPreferences? prefs,
+  })  : _client = client,
+        _prefs = prefs {
+    if (prefs != null) {
+      final savedUrl = prefs.getString(_baseUrlKey);
+      final savedTgId = prefs.getString(_telegramIdKey);
+      if (savedUrl != null && savedUrl.isNotEmpty) {
+        _client.setBaseUrl(savedUrl);
+      }
+      if (savedTgId != null && savedTgId.isNotEmpty) {
+        _client.setTelegramUserId(savedTgId);
+      }
     }
   }
 
-  @override
-  String getBaseUrl() => _client.baseUrl;
+  String get baseUrl => _client.baseUrl;
+  String get telegramUserId => _client.telegramUserId ?? '';
 
-  @override
-  Future<void> saveBaseUrl(String url) async {
+  Future<void> saveServerConfig({required String url, required String tgId}) async {
     _client.setBaseUrl(url);
-    await _prefs.setString(_urlKey, url.trim());
+    _client.setTelegramUserId(tgId);
+    final p = _prefs;
+    if (p != null) {
+      await p.setString(_baseUrlKey, url);
+      await p.setString(_telegramIdKey, tgId);
+    }
   }
 
-  @override
+  // Workgroups
+  Future<List<ZeepubWorkgroup>> getWorkgroups() => _client.getWorkgroups();
+
+  Future<ZeepubWorkgroupDetail> getWorkgroupDetail(int id) => _client.getWorkgroupDetail(id);
+
+  Future<Map<String, dynamic>> saveWorkgroup(Map<String, dynamic> payload) =>
+      _client.saveWorkgroup(payload);
+
+  Future<Map<String, dynamic>> deleteWorkgroup(int id) =>
+      _client.deleteWorkgroup(id);
+
+  Future<Map<String, dynamic>> purgeEmptyWorkgroups() =>
+      _client.purgeEmptyWorkgroups();
+
+  Future<Map<String, dynamic>> mergeWorkgroups({
+    required int targetId,
+    required List<int> sourceIds,
+  }) =>
+      _client.mergeWorkgroups(targetId: targetId, sourceIds: sourceIds);
+
+  Future<Map<String, dynamic>> syncWorkgroupBooks(
+    int workgroupId,
+    List<String> bookIds,
+  ) =>
+      _client.syncWorkgroupBooks(workgroupId, bookIds);
+
+  // Series Catalog
+  Future<({List<ZeepubSeries> items, int total, int page, int totalPages})> getSeriesGrid({
+    String? query,
+    String? category,
+    String? sortBy,
+    int page = 1,
+    int limit = 24,
+  }) =>
+      _client.getSeriesGrid(
+        query: query,
+        category: category,
+        sortBy: sortBy,
+        page: page,
+        limit: limit,
+      );
+
+  Future<ZeepubSeries> getSeriesDetail(String seriesHash) => _client.getSeriesDetail(seriesHash);
+
+  Future<void> updateSeries(String seriesHash, Map<String, dynamic> payload) =>
+      _client.updateSeries(seriesHash, payload);
+
+  // Volumes
   Future<({List<ZeepubVolume> items, int total, int page, int totalPages})> getVolumes({
     int page = 1,
     int pageSize = 30,
@@ -91,48 +114,90 @@ class ZeepubEditorialRepositoryImpl implements ZeepubEditorialRepository {
         isUncensored: isUncensored,
       );
 
-  @override
   Future<ZeepubVolume> getVolumeDetail(String bookHash) => _client.getVolumeDetail(bookHash);
 
-  @override
-  Future<void> updateVolume(String bookHash, Map<String, dynamic> payload) => _client.updateVolume(bookHash, payload);
+  Future<void> updateVolume(String bookHash, Map<String, dynamic> payload) =>
+      _client.updateVolume(bookHash, payload);
 
-  @override
-  Future<Map<String, dynamic>> syncVolumeFile(String bookHash) => _client.syncVolumeFile(bookHash);
+  Future<void> syncVolumeFile(String bookHash) => _client.syncVolumeFile(bookHash);
 
-  @override
-  Future<({List<ZeepubSeries> items, int total, int page})> getSeriesList({
-    int page = 1,
-    int pageSize = 50,
-    String? query,
-  }) =>
-      _client.getSeriesList(page: page, pageSize: pageSize, query: query);
+  Future<Map<String, dynamic>> uploadVolumeCover(String bookHash, List<int> fileBytes, String filename) =>
+      _client.uploadVolumeCover(bookHash, fileBytes, filename);
 
-  @override
-  Future<Map<String, dynamic>> getSeriesDetail(String seriesId) => _client.getSeriesDetail(seriesId);
+  // AI Suggestion
+  Future<ZeepubAiSuggestion?> getAiSuggestion(String title) => _client.getAiSuggestion(title);
 
-  @override
-  Future<void> updateSeries(String seriesId, Map<String, dynamic> payload) => _client.updateSeries(seriesId, payload);
+  Future<Map<String, dynamic>> sendToTelegram(String bookHash) =>
+      _client.sendToTelegram(bookHash);
 
-  @override
-  Future<List<ZeepubWorkgroup>> getWorkgroups() => _client.getWorkgroups();
+  // Publisher
+  Future<List<ZeepubChannel>> getChannels() => _client.getChannels();
+  Future<void> saveChannel(Map<String, dynamic> payload) => _client.saveChannel(payload);
+  Future<void> deleteChannel(int channelId) => _client.deleteChannel(channelId);
 
-  @override
-  Future<ZeepubAiSuggestion?> aiSuggestMetadata(String title) => _client.aiSuggestMetadata(title);
+  Future<List<ZeepubTemplate>> getTemplates() => _client.getTemplates();
+  Future<void> saveTemplate(Map<String, dynamic> payload) => _client.saveTemplate(payload);
+  Future<void> deleteTemplate(int templateId) => _client.deleteTemplate(templateId);
+  Future<void> restoreTemplates() => _client.restoreTemplates();
 
-  @override
+  Future<List<ZeepubQueueItem>> getQueue([String? status, int limit = 100]) =>
+      _client.getQueue(status, limit);
+  Future<void> cancelQueueItem(int id) => _client.cancelQueueItem(id);
+  Future<void> retryQueueItem(int id) => _client.retryQueueItem(id);
+  Future<void> updateQueueItem({
+    required int id,
+    String? scheduledFor,
+    int? channelId,
+    int? templateId,
+    String? customCaption,
+    bool? sendAsFile,
+    String? status,
+    bool immediate = false,
+  }) => _client.updateQueueItem(
+    id: id,
+    scheduledFor: scheduledFor,
+    channelId: channelId,
+    templateId: templateId,
+    customCaption: customCaption,
+    sendAsFile: sendAsFile,
+    status: status,
+    immediate: immediate,
+  );
+
+  Future<List<ZeepubPostItem>> getPostsHistory([int limit = 100]) =>
+      _client.getPostsHistory(limit);
+  Future<Map<String, dynamic>> syncFacebookPublications({int limit = 50, bool forceAll = false}) =>
+      _client.syncFacebookPublications(limit: limit, forceAll: forceAll);
+
   Future<Map<String, dynamic>> publishNow({
     required String bookHash,
+    int? channelId,
+    int? templateId,
     String? customCaption,
     bool sendAsFile = true,
   }) =>
-      _client.publishNow(bookHash: bookHash, customCaption: customCaption, sendAsFile: sendAsFile);
+      _client.publishNow(
+        bookHash: bookHash,
+        channelId: channelId,
+        templateId: templateId,
+        customCaption: customCaption,
+        sendAsFile: sendAsFile,
+      );
 
-  @override
   Future<Map<String, dynamic>> schedulePublication({
     required String bookHash,
     required String scheduledAtIso,
+    int? channelId,
+    int? templateId,
     String? customCaption,
+    bool sendAsFile = true,
   }) =>
-      _client.schedulePublication(bookHash: bookHash, scheduledAtIso: scheduledAtIso, customCaption: customCaption);
+      _client.schedulePublication(
+        bookHash: bookHash,
+        scheduledAtIso: scheduledAtIso,
+        channelId: channelId,
+        templateId: templateId,
+        customCaption: customCaption,
+        sendAsFile: sendAsFile,
+      );
 }

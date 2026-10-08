@@ -15,11 +15,15 @@ class ZeepubAiSuggestion {
 
   factory ZeepubAiSuggestion.fromJson(Map<String, dynamic> json) {
     return ZeepubAiSuggestion(
-      spanishTitle: (json['spanish_title'] ?? '').toString(),
-      englishTitle: (json['english_title'] ?? '').toString(),
+      spanishTitle: (json['spanish_title'] ?? json['series_spanish'] ?? '').toString(),
+      englishTitle: (json['english_title'] ?? json['series_english'] ?? '').toString(),
       author: (json['author'] ?? '').toString(),
       volume: json['volume'] != null ? (json['volume'] as num).toDouble() : null,
       demography: (json['demography'] ?? '').toString(),
     );
   }
+
+  String get seriesSpanish => spanishTitle;
+  String get illustrator => '';
+  String get publisher => '';
 }
