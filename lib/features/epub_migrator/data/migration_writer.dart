@@ -308,6 +308,42 @@ String _page(String lang, String title, String styleHref, BookMatter matter, Str
 </html>
 ''';
 
+// Las notas seguidas forman una lista, como en la plantilla: los lectores la muestran en la página y abren cada
+// elemento en la ventana de la nota. El enlace de vuelta solo envuelve el número para que el texto no sea un enlace.
+void _noteList(XmlElement section) {
+  XmlElement? list;
+  for (final div in elementsOf(section, 'div').where((e) => classesOf(e).contains('note')).toList()) {
+    final holder = div.descendants.whereType<XmlElement>().where((e) => e.getAttribute('id') != null).firstOrNull;
+    final item = _el('li', {'id': ?(div.getAttribute('id') ?? holder?.getAttribute('id'))});
+    holder?.removeAttribute('id');
+    final children = [...div.children];
+    for (final c in children) {
+      c.remove();
+    }
+    item.children.addAll(children);
+    final backlink = elementsOf(item, 'a').where((a) => (a.getAttribute('href') ?? '').contains('#')).firstOrNull;
+    if (backlink != null) {
+      backlink.setAttribute('role', 'doc-backlink');
+      final number = backlink.childElements.where((e) => localName(e) == 'sup').firstOrNull;
+      if (number != null) {
+        final rest = backlink.children.skip(backlink.children.indexOf(number) + 1).toList();
+        for (final n in rest) {
+          n.remove();
+        }
+        backlink.parent!.children.insertAll(backlink.parent!.children.indexOf(backlink) + 1, rest);
+      }
+    }
+    final parent = div.parent!;
+    if (list != null && list.parent == parent && div.previousElementSibling == list) {
+      div.remove();
+    } else {
+      list = _el('ol', {'class': 'notes'});
+      parent.children[parent.children.indexOf(div)] = list;
+    }
+    list.children.add(item);
+  }
+}
+
 String _warningBlock(MigrationProject project) => '<blockquote class="warning">\n      <p class="large align-center"><b>Advertencia:</b></p>\n      <p class="space-0">${escapeXml(project.warning.text)}</p>\n    </blockquote>';
 
 const _voidElements = {'meta', 'link', 'img', 'br', 'hr', 'col', 'source', 'wbr'};
@@ -535,22 +571,7 @@ void _finishKind(XmlDocument doc, MigrationDoc d, MigrationProject project) {
       }
       elementsOf(section, 'img').firstOrNull?.setAttribute('role', 'doc-cover');
     case MigrationKind.endnotes:
-      for (final div in elementsOf(section, 'div').where((e) => classesOf(e).contains('note')).toList()) {
-        final holder = div.descendants.whereType<XmlElement>().where((e) => e.getAttribute('id') != null).firstOrNull;
-        final aside = XmlElement.tag('aside', attributes: [for (final a in div.attributes) a.copy()], isSelfClosing: false);
-        final children = [...div.children];
-        for (final c in children) {
-          c.remove();
-        }
-        aside.children.addAll(children);
-        setEpubType(aside, 'endnote');
-        if (holder != null && aside.getAttribute('id') == null) {
-          aside.setAttribute('id', holder.getAttribute('id'));
-          holder.removeAttribute('id');
-        }
-        elementsOf(aside, 'a').where((a) => (a.getAttribute('href') ?? '').contains('#')).firstOrNull?.setAttribute('role', 'doc-backlink');
-        div.parent!.children[div.parent!.children.indexOf(div)] = aside;
-      }
+      _noteList(section);
     case MigrationKind.notice:
       final quote = elementsOf(section, 'blockquote').firstOrNull;
       final block = XmlDocumentFragment.parse(_warningBlock(project)).firstElementChild!.copy();

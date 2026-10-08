@@ -89,7 +89,7 @@ void main() {
 
     final notes = files['OEBPS/Text/notas.xhtml']!;
     expect(notes, contains('<section epub:type="endnotes" role="doc-endnotes" aria-labelledby="encabezado">'));
-    expect(notes, contains('<aside class="note" epub:type="endnote" id="nt1"><p><a href="capitulo01.xhtml#rf1" role="doc-backlink">'));
+    expect(notes, contains('<ol class="notes"><li id="nt1"><p><a href="capitulo01.xhtml#rf1" role="doc-backlink"><sup>1</sup></a> Una nota.</p></li></ol>'));
 
     final nav = files['OEBPS/Text/toc.xhtml']!;
     expect(nav, contains('<a href="cubierta.xhtml">Cubierta</a>'));
