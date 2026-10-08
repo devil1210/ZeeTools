@@ -568,7 +568,7 @@ class EpubTemplateBuilder {
     ];
     if (subtitle.isNotEmpty) b.writeln('    <h2 class="subtitle sigil_not_in_toc" role="doc-subtitle">${subtitle.join('<br/>')}</h2>');
     b.writeln('    <div class="align-center" epub:type="copyright-page">');
-    for (final line in creditLines(m.actors)) {
+    for (final line in creditLines(m.actors, bookLanguage: m.language)) {
       b.writeln('      <p${line.separated ? ' class="space-1"' : ''}><b>${_esc(line.label)}:</b> ${line.names}</p>');
     }
     // Los enlaces de una misma etiqueta van juntos bajo ella, en el orden en que se definieron.
@@ -699,8 +699,8 @@ typedef CreditLine = ({String label, String names, bool separated});
 
 // Líneas de créditos en el orden de las personas: las seguidas con la misma función comparten
 // línea y la distribución va entre paréntesis junto al maquetador.
-List<CreditLine> creditLines(List<Actor> actors) {
-  final credited = actors.where((a) => a.credited && a.name.trim().isNotEmpty).toList();
+List<CreditLine> creditLines(List<Actor> actors, {String bookLanguage = ''}) {
+  final credited = actors.where((a) => (a.credited || a.translatesToOther(bookLanguage)) && a.name.trim().isNotEmpty).toList();
   final distributors = credited.where((a) => a.roles.length == 1 && a.roles.single == MarcRelator.dst).toList();
   final hasLayout = credited.any((a) => a.roles.contains(MarcRelator.mrk));
   final lines = <({String label, List<String> names, bool separated})>[];
