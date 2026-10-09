@@ -6,24 +6,7 @@ import '../theme/app_dimensions.dart';
 // solo con el color de fondo. `child` hereda el color vía [IconTheme]/
 // [DefaultTextStyle]; para conservar uno propio, fijarlo en el hijo. `dense` la
 // compacta para filas de herramientas.
-class SelectionPill extends StatelessWidget {
-  const SelectionPill({
-    super.key,
-    required this.child,
-    required this.selected,
-    required this.onTap,
-    this.color,
-    this.dense = false,
-    this.tooltip,
-  });
-
-  final Widget child;
-  final bool selected;
-  final VoidCallback onTap;
-  final Color? color;
-  final bool dense;
-  final String? tooltip;
-
+class const SelectionPill({super.key, required final Widget child, required final bool selected, required final VoidCallback onTap, final Color? color, final bool dense = false, final String? tooltip}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -34,7 +17,6 @@ class SelectionPill extends StatelessWidget {
     };
     final foreground = !selected ? cs.onSurfaceVariant : (color ?? cs.onPrimaryContainer);
     final textTheme = Theme.of(context).textTheme;
-    final labelStyle = ((dense ? textTheme.labelSmall : textTheme.labelLarge) ?? const TextStyle()).copyWith(color: foreground, fontWeight: dense ? FontWeight.w600 : null);
     final radius = BorderRadius.circular(AppRadius.small);
 
     final pill = Material(
@@ -47,7 +29,10 @@ class SelectionPill extends StatelessWidget {
           padding: dense ? const EdgeInsets.symmetric(horizontal: AppPadding.small + AppPadding.tiny, vertical: AppPadding.tiny) : const EdgeInsets.symmetric(horizontal: AppPadding.medium, vertical: AppPadding.small + AppPadding.tiny),
           child: IconTheme.merge(
             data: IconThemeData(size: dense ? 14 : 18, color: foreground),
-            child: DefaultTextStyle.merge(style: labelStyle, child: child),
+            child: DefaultTextStyle.merge(
+              style: ((dense ? textTheme.labelSmall : textTheme.labelLarge) ?? const TextStyle()).copyWith(color: foreground, fontWeight: dense ? FontWeight.w600 : null),
+              child: child,
+            ),
           ),
         ),
       ),
@@ -60,5 +45,33 @@ class SelectionPill extends StatelessWidget {
           )
         : pill;
     return tooltip == null ? margined : Tooltip(message: tooltip, child: margined);
+  }
+}
+
+// Opciones de un catálogo que pasan a la línea siguiente cuando no caben.
+class const SelectionPillGroup<T>({
+  super.key,
+  required final Iterable<T> options,
+  required final bool Function(T option) selected,
+  required final ValueChanged<T> onTap,
+  required final String Function(T option) label,
+  final String? Function(T option)? tooltip,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.medium,
+      runSpacing: AppSpacing.small,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final option in options)
+          SelectionPill(
+            selected: selected(option),
+            tooltip: tooltip?.call(option),
+            onTap: () => onTap(option),
+            child: Text(label(option)),
+          ),
+      ],
+    );
   }
 }

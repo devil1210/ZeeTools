@@ -4,54 +4,62 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
 
 import '/common/theme/app_dimensions.dart';
+import '/common/utils/list_toggle.dart';
 import '/common/widgets/app_text_field.dart';
-import '/common/widgets/selection_pill.dart';
+import '/common/widgets/field_grid.dart';
+import '/common/widgets/field_group.dart';
 import '/common/widgets/file_drop_button.dart';
+import '/common/widgets/form_page.dart';
 import '/common/widgets/form_section.dart';
-import '/common/widgets/responsive_row.dart';
 import '/common/widgets/outlined_dropdown.dart';
+import '/common/widgets/selection_pill.dart';
 import '../../../data/system_fonts.dart';
 import '../../../domain/embedded_font.dart';
 import '../../cubit/epub_templater_cubit.dart';
 
-class FontsForm extends StatelessWidget {
-  const FontsForm({super.key});
+Future<String?> _pickSystemFont(BuildContext context) {
+  final fonts = context.read<EpubTemplaterCubit>().systemFonts();
+  return showDialog<String>(
+    context: context,
+    builder: (_) => _SystemFontPicker(fonts: fonts),
+  );
+}
 
+class const FontsForm({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<EpubTemplaterCubit>();
     final fonts = context.select((EpubTemplaterCubit c) => c.state.project.fonts);
-    void replace(int i, EmbeddedFont font) => cubit.updateFonts([...fonts]..[i] = font);
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(AppPadding.large, AppPadding.large, AppPadding.large, 96),
-      children: [
-        for (final (i, font) in fonts.indexed)
-          _FontCard(
-            key: ValueKey('$i-${fonts.length}'),
-            font: font,
-            onChanged: (f) => replace(i, f),
-            onRemove: () => cubit.updateFonts([...fonts]..removeAt(i)),
-          ),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.add),
-          label: const Text('Añadir fuente'),
-          onPressed: () async {
-            final family = await showDialog<String>(
-              context: context,
-              builder: (_) => _SystemFontPicker(fonts: cubit.systemFonts()),
-            );
-            if (family != null) {
-              cubit.updateFonts([
-                ...fonts,
-                EmbeddedFont(family: family, headingLevels: const [1]),
-              ]);
-            }
-          },
+    return FormPage(
+      sections: [
+        FormSection(
+          title: 'Fuentes incrustadas',
+          icon: Icons.font_download_outlined,
+          children: [
+            for (final (i, font) in fonts.indexed)
+              _FontCard(
+                key: ValueKey('$i-${fonts.length}'),
+                font: font,
+                onChanged: (f) => cubit.updateFonts([...fonts]..[i] = f),
+                onRemove: () => cubit.updateFonts([...fonts]..removeAt(i)),
+              ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Añadir fuente'),
+              onPressed: () async {
+                if (await _pickSystemFont(context) case final family?) {
+                  cubit.updateFonts([
+                    ...fonts,
+                    EmbeddedFont(family: family, headingLevels: const [1]),
+                  ]);
+                }
+              },
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.large),
         FormSection(
           title: 'CSS propio',
+          icon: Icons.code,
           children: [
             AppTextField(
               key: ValueKey(context.select((EpubTemplaterCubit c) => c.state.revision)),
@@ -59,6 +67,7 @@ class FontsForm extends StatelessWidget {
               value: context.select((EpubTemplaterCubit c) => c.state.project.customCss),
               hint: '.carta {\n  font-style: italic;\n}',
               helper: 'Se añaden al final de style.css, después de las fuentes.',
+              minLines: 6,
               maxLines: 16,
               onChanged: cubit.setCustomCss,
             ),
@@ -69,101 +78,92 @@ class FontsForm extends StatelessWidget {
   }
 }
 
-class _FontCard extends StatelessWidget {
-  const _FontCard({super.key, required this.font, required this.onChanged, required this.onRemove});
-
-  final EmbeddedFont font;
-  final ValueChanged<EmbeddedFont> onChanged;
-  final VoidCallback onRemove;
-
+class const _FontCard({super.key, required final EmbeddedFont font, required final ValueChanged<EmbeddedFont> onChanged, required final VoidCallback onRemove}) extends StatelessWidget {
   // La familia se lee del primer archivo, o de su nombre si no se puede analizar.
-  void _useFiles(List<String> paths) {
-    final family = readFontFace(paths.first)?.family ?? p.basenameWithoutExtension(paths.first);
-    onChanged(font.copyWith(family: family, files: paths));
-  }
+  void _useFiles(List<String> paths) => onChanged(font.copyWith(family: readFontFace(paths.first)?.family ?? p.basenameWithoutExtension(paths.first), files: paths));
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<EpubTemplaterCubit>();
-    return FormSection(
-      title: font.family.isEmpty ? 'Fuente' : font.family,
-      trailing: IconButton(tooltip: 'Quitar', icon: const Icon(Icons.delete_outline), onPressed: onRemove),
-      children: [
-        Text('Título de ejemplo — Capítulo 1', style: TextStyle(fontFamily: font.family, fontSize: 22)),
-        ResponsiveRow(
+    final textTheme = Theme.of(context).textTheme;
+    return Card.outlined(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AppPadding.medium + AppPadding.small, AppPadding.small, AppPadding.small, AppPadding.medium + AppPadding.small),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: AppSpacing.medium + AppSpacing.small,
           children: [
-            OutlinedButton.icon(
-              icon: const Icon(Icons.font_download_outlined),
-              label: const Text('Fuente del sistema…'),
-              onPressed: () async {
-                final family = await showDialog<String>(
-                  context: context,
-                  builder: (_) => _SystemFontPicker(fonts: cubit.systemFonts()),
-                );
-                if (family != null) onChanged(font.copyWith(family: family, files: const []));
-              },
+            Row(
+              children: [
+                Expanded(child: Text(font.family.isEmpty ? 'Fuente sin elegir' : font.family, style: textTheme.titleSmall)),
+                IconButton(tooltip: 'Quitar', icon: const Icon(Icons.close, size: 18), onPressed: onRemove),
+              ],
             ),
-            FileDropButton(
-              icon: Icons.file_open_outlined,
-              label: 'Archivos…',
-              dropLabel: 'Suelta aquí la fuente',
-              extensions: fontExtensions,
-              onPick: () async {
-                final paths = (await FilePicker.pickFiles(
-                  type: FileType.custom,
-                  allowedExtensions: fontExtensions,
-                  dialogTitle: 'Seleccionar archivos de la fuente',
-                  windowsOptions: const WindowsOptions(lockParentWindow: true),
-                  linuxOptions: const LinuxOptions(lockParentWindow: true),
-                )).map((f) => f.path).whereType<String>().toList();
-                if (paths.isNotEmpty) _useFiles(paths);
-              },
-              onFiles: _useFiles,
+            Text('Título de ejemplo — Capítulo 1', style: TextStyle(fontFamily: font.family, fontSize: 22)),
+            FieldGrid(
+              children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.font_download_outlined),
+                  label: const Text('Fuente del sistema…'),
+                  onPressed: () async {
+                    if (await _pickSystemFont(context) case final family?) onChanged(font.copyWith(family: family, files: const []));
+                  },
+                ),
+                FileDropButton(
+                  icon: Icons.file_open_outlined,
+                  label: 'Archivos…',
+                  dropLabel: 'Suelta aquí la fuente',
+                  extensions: fontExtensions,
+                  onPick: () async {
+                    final paths = (await FilePicker.pickFiles(
+                      type: FileType.custom,
+                      allowedExtensions: fontExtensions,
+                      dialogTitle: 'Seleccionar archivos de la fuente',
+                      windowsOptions: const WindowsOptions(lockParentWindow: true),
+                      linuxOptions: const LinuxOptions(lockParentWindow: true),
+                    )).map((f) => f.path).whereType<String>().toList();
+                    if (paths.isNotEmpty) _useFiles(paths);
+                  },
+                  onFiles: _useFiles,
+                ),
+                OutlinedDropdown<GenericFamily>(
+                  label: 'Respaldo',
+                  value: font.fallback,
+                  onChanged: (v) => onChanged(font.copyWith(fallback: v ?? GenericFamily.serif)),
+                  items: [for (final g in GenericFamily.values) DropdownMenuItem(value: g, child: Text(g.css))],
+                ),
+              ],
             ),
-            OutlinedDropdown<GenericFamily>(
-              label: 'Respaldo',
-              value: font.fallback,
-              onChanged: (v) => onChanged(font.copyWith(fallback: v ?? GenericFamily.serif)),
-              items: [for (final g in GenericFamily.values) DropdownMenuItem(value: g, child: Text(g.css))],
-            ),
-          ],
-        ),
-        if (font.files.isNotEmpty) Text(font.files.map(p.basename).join(' · '), style: Theme.of(context).textTheme.bodySmall),
-        Text('Niveles de título', style: Theme.of(context).textTheme.labelLarge),
-        Wrap(
-          spacing: AppSpacing.medium,
-          runSpacing: AppSpacing.small,
-          children: [
-            for (var level = 1; level <= 9; level++)
-              SelectionPill(
-                selected: font.headingLevels.contains(level),
-                onTap: () => onChanged(font.copyWith(headingLevels: font.headingLevels.contains(level) ? ([...font.headingLevels]..remove(level)) : [...font.headingLevels, level])),
-                child: Text('h$level'),
+            if (font.files.isNotEmpty) Text(font.files.map(p.basename).join(' · '), style: textTheme.bodySmall),
+            FieldGroup(
+              label: 'Niveles de título',
+              child: SelectionPillGroup(
+                options: [for (var level = 1; level <= 9; level++) level],
+                selected: font.headingLevels.contains,
+                label: (level) => 'h$level',
+                onTap: (level) => onChanged(font.copyWith(headingLevels: font.headingLevels.toggled(level))),
               ),
-          ],
-        ),
-        SelectableText.rich(
-          TextSpan(
-            style: Theme.of(context).textTheme.bodySmall,
-            children: [
-              const TextSpan(text: 'Clase: '),
+            ),
+            SelectableText.rich(
               TextSpan(
-                text: '<p class="${font.cssClass}">',
-                style: const TextStyle(fontFamily: 'monospace'),
+                style: textTheme.bodySmall,
+                children: [
+                  const TextSpan(text: 'Clase: '),
+                  TextSpan(
+                    text: '<p class="${font.cssClass}">',
+                    style: const TextStyle(fontFamily: 'monospace'),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
-class _SystemFontPicker extends StatefulWidget {
-  const _SystemFontPicker({required this.fonts});
-
-  final Future<List<FontFace>> fonts;
-
+class const _SystemFontPicker({required final Future<List<FontFace>> fonts}) extends StatefulWidget {
   @override
   State<_SystemFontPicker> createState() => _SystemFontPickerState();
 }

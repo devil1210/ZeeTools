@@ -4,18 +4,16 @@ import '../theme/app_dimensions.dart';
 
 // Desplegable con el mismo borde, etiqueta y altura que los campos de texto.
 // Sin [onChanged] queda deshabilitado.
-class OutlinedDropdown<T> extends StatelessWidget {
-  const OutlinedDropdown({super.key, required this.label, required this.value, required this.items, required this.onChanged, this.helper, this.hint, this.floatLabel = false});
-
-  final String label;
-  final T value;
-  final List<DropdownMenuItem<T>> items;
-  final ValueChanged<T?>? onChanged;
-  final String? helper;
-  final String? hint;
-  // Mantiene la etiqueta arriba para que la sugerencia se vea sin abrir el desplegable.
-  final bool floatLabel;
-
+class const OutlinedDropdown<T>({
+  super.key,
+  required final String label,
+  required final T value,
+  required final List<DropdownMenuItem<T>> items,
+  required final ValueChanged<T?>? onChanged,
+  final String? helper,
+  final String? hint,
+  final String? error,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
@@ -23,7 +21,7 @@ class OutlinedDropdown<T> extends StatelessWidget {
       initialValue: value,
       isExpanded: true,
       borderRadius: BorderRadius.circular(AppRadius.small),
-      decoration: InputDecoration(labelText: label, helperText: helper, hintText: hint, floatingLabelBehavior: floatLabel ? FloatingLabelBehavior.always : null),
+      decoration: InputDecoration(labelText: label, helperText: helper, helperMaxLines: 3, hintText: hint, errorText: error),
       items: items,
       onChanged: onChanged,
     );

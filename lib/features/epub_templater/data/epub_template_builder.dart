@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../domain/book_metadata.dart';
 import '../domain/embedded_font.dart';
 import '../domain/marc_relator.dart';
+import '../domain/metadata_field.dart';
 import '../domain/section_kind.dart';
 import '../domain/template_project.dart';
 import '../domain/template_section.dart';
@@ -97,27 +98,39 @@ enum IssueScope { metadata, sections, fonts }
 
 typedef TemplateIssue = ({IssueLevel level, IssueScope scope, String message});
 
-List<TemplateIssue> templateIssues(TemplateProject project) {
-  final m = project.metadata;
-  final issues = <TemplateIssue>[];
-  void add(IssueLevel level, IssueScope scope, String message) => issues.add((level: level, scope: scope, message: message));
+// Problema de un campo de los metadatos: [label] acompaña al campo y [message] lo explica en los avisos de la plantilla.
+typedef MetadataProblem = ({IssueLevel level, String label, String message});
 
-  final main = m.mainLanguage;
-  if (m.title.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El título es obligatorio.');
-  if (m.title.trim().isNotEmpty && missingRequired(m.altTitles, m.language, main: main)) add(IssueLevel.error, IssueScope.metadata, 'El título en ${languageName(m.language)} es obligatorio.');
-  if (!m.standalone && !m.hasSeries) add(IssueLevel.error, IssueScope.metadata, 'La serie es obligatoria salvo en un volumen único.');
-  if (m.hasSeries && missingRequired(m.altSeries, m.language, main: main)) add(IssueLevel.error, IssueScope.metadata, 'La serie en ${languageName(m.language)} es obligatoria.');
-  if (!m.hasAuthor) add(IssueLevel.error, IssueScope.metadata, 'El autor es obligatorio.');
-  if (!m.hasPublisher) add(IssueLevel.error, IssueScope.metadata, 'La editorial es obligatoria.');
-  if (m.date.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'La fecha de publicación es obligatoria.');
-  if (m.description.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'La sinopsis es obligatoria.');
-  if (m.demographic == null) add(IssueLevel.error, IssueScope.metadata, 'La demografía es obligatoria.');
-  if (m.genres.isEmpty) add(IssueLevel.error, IssueScope.metadata, 'Elige al menos un género.');
-  if (m.language.trim().isEmpty) add(IssueLevel.error, IssueScope.metadata, 'El idioma es obligatorio.');
-  if (!m.isWebNovel && m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-13 no es válido.');
-  if (!m.isWebNovel && m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10)) add(IssueLevel.warning, IssueScope.metadata, 'El ISBN-10 no es válido.');
-  if (m.hasSeries && double.tryParse(m.seriesIndex.trim()) == null) add(IssueLevel.warning, IssueScope.metadata, 'El número de volumen no es numérico.');
-  if (m.date.trim().isNotEmpty && DateTime.tryParse(m.date.trim()) == null) add(IssueLevel.error, IssueScope.metadata, 'La fecha no tiene formato AAAA-MM-DD.');
+// [main] es el idioma del título y la serie principales. El orden es el de los avisos.
+Map<MetadataField, MetadataProblem> metadataProblems(BookMetadata m, {String? main}) {
+  final mainLanguage = main ?? m.mainLanguage;
+  return {
+    if (m.title.trim().isEmpty) MetadataField.title: (level: IssueLevel.error, label: 'Obligatorio', message: 'El título es obligatorio.'),
+    if (m.title.trim().isNotEmpty && missingRequired(m.altTitles, m.language, main: mainLanguage)) MetadataField.altTitles: (level: IssueLevel.error, label: 'Obligatorio', message: 'El título en ${languageName(m.language)} es obligatorio.'),
+    if (!m.standalone && !m.hasSeries) MetadataField.series: (level: IssueLevel.error, label: 'Obligatoria salvo en un volumen único', message: 'La serie es obligatoria salvo en un volumen único.'),
+    if (m.hasSeries && missingRequired(m.altSeries, m.language, main: mainLanguage)) MetadataField.altSeries: (level: IssueLevel.error, label: 'Obligatoria', message: 'La serie en ${languageName(m.language)} es obligatoria.'),
+    if (!m.hasAuthor) MetadataField.actors: (level: IssueLevel.error, label: 'Falta el autor', message: 'El autor es obligatorio.'),
+    if (!m.hasPublisher) MetadataField.publishers: (level: IssueLevel.error, label: 'Obligatoria', message: 'La editorial es obligatoria.'),
+    MetadataField.date: ?switch (m.date.trim()) {
+      '' => (level: IssueLevel.error, label: 'Obligatoria', message: 'La fecha de publicación es obligatoria.'),
+      final date when DateTime.tryParse(date) == null => (level: IssueLevel.error, label: 'No tiene formato AAAA-MM-DD', message: 'La fecha no tiene formato AAAA-MM-DD.'),
+      _ => null,
+    },
+    if (m.description.trim().isEmpty) MetadataField.description: (level: IssueLevel.error, label: 'Obligatoria', message: 'La sinopsis es obligatoria.'),
+    if (m.demographic == null) MetadataField.demographic: (level: IssueLevel.error, label: 'Obligatoria', message: 'La demografía es obligatoria.'),
+    if (m.genres.isEmpty) MetadataField.genres: (level: IssueLevel.error, label: 'Elige al menos uno', message: 'Elige al menos un género.'),
+    if (m.language.trim().isEmpty) MetadataField.language: (level: IssueLevel.error, label: 'Obligatorio', message: 'El idioma es obligatorio.'),
+    if (!m.isWebNovel && m.isbn13.trim().isNotEmpty && !isValidIsbn13(m.isbn13)) MetadataField.isbn13: (level: IssueLevel.warning, label: 'No válido', message: 'El ISBN-13 no es válido.'),
+    if (!m.isWebNovel && m.isbn10.trim().isNotEmpty && !isValidIsbn10(m.isbn10)) MetadataField.isbn10: (level: IssueLevel.warning, label: 'No válido', message: 'El ISBN-10 no es válido.'),
+    if (m.hasSeries && double.tryParse(m.seriesIndex.trim()) == null) MetadataField.seriesIndex: (level: IssueLevel.warning, label: m.seriesIndex.trim().isEmpty ? 'Obligatorio' : 'No es un número', message: 'El número de volumen no es numérico.'),
+  };
+}
+
+List<TemplateIssue> templateIssues(TemplateProject project) {
+  final issues = [
+    for (final problem in metadataProblems(project.metadata).values) (level: problem.level, scope: IssueScope.metadata, message: problem.message),
+  ];
+  void add(IssueLevel level, IssueScope scope, String message) => issues.add((level: level, scope: scope, message: message));
 
   if (project.sections.isEmpty) add(IssueLevel.error, IssueScope.sections, 'La plantilla no tiene secciones.');
   final seen = <String>{};

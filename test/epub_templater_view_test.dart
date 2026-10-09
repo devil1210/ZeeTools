@@ -109,10 +109,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Obligatorio'), findsOneWidget);
 
-    expect(find.widgetWithText(TextFormField, 'Título en español'), findsNothing);
+    // El equivalente en el idioma del libro está a la vista, pero solo es obligatorio cuando hay título.
+    Finder spanishRequired() => find.descendant(of: find.widgetWithText(TextFormField, 'Título en español'), matching: find.text('Obligatorio'));
+    expect(spanishRequired(), findsNothing);
     await tester.enterText(find.widgetWithText(TextFormField, 'Título en inglés'), 'My Novel - Volumen 01 [MN]');
     await tester.pump();
-    expect(find.text('Obligatorio'), findsOneWidget);
+    expect(spanishRequired(), findsOneWidget);
     await tester.enterText(find.widgetWithText(TextFormField, 'Título en español'), 'Mi novela - Volumen 01');
     await tester.pump();
     expect(find.text('Obligatorio'), findsNothing);
@@ -300,20 +302,68 @@ void main() {
     expect(cubit.state.project.fonts, hasLength(2));
   });
 
-  testWidgets('el nombre para ordenar aparece con el nombre y se deduce mientras no se edite', (tester) async {
+  testWidgets('el nombre para ordenar se habilita con el nombre y se deduce mientras no se edite', (tester) async {
     await pumpView(tester, size: const Size(1280, 3000));
     await tester.tap(find.text('Metadatos'));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextField, 'Nombre para ordenar'), findsNWidgets(1));
+    final actors = cubit.state.project.metadata.actors;
+    expect([for (final field in tester.widgetList<TextField>(find.widgetWithText(TextField, 'Nombre para ordenar'))) field.enabled], [for (final a in actors) a.name.isNotEmpty]);
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Nombre').first, 'Nanasawa Matari');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Nombre en romaji').first, 'Nanasawa Matari');
     await tester.pumpAndSettle();
     expect(cubit.state.project.metadata.actors.first.fileAs, 'Matari, Nanasawa');
 
     await tester.enterText(find.widgetWithText(TextField, 'Nombre para ordenar').first, 'Nanasawa');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Nombre').first, 'Nanasawa Matari Sensei');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Nombre en romaji').first, 'Nanasawa Matari Sensei');
     await tester.pumpAndSettle();
     expect(cubit.state.project.metadata.actors.first.fileAs, 'Nanasawa');
+  });
+
+  testWidgets('el nombre original solo se pide a quien tiene un nombre en escritura propia', (tester) async {
+    await pumpView(tester, size: const Size(1280, 4000));
+    await tester.tap(find.text('Metadatos'));
+    await tester.pumpAndSettle();
+    // Los creadores de una obra japonesa tienen nombre en japonés; los colaboradores, en alfabeto latino.
+    final creators = cubit.state.project.metadata.actors.where((a) => a.isCreator).length;
+    expect(find.widgetWithText(TextFormField, 'Nombre en japonés'), findsNWidgets(creators));
+
+    await tester.enterText(find.widgetWithText(TextFormField, 'Nombre en japonés').first, '七沢またり');
+    await tester.pumpAndSettle();
+    expect(cubit.state.project.metadata.actors.first.scriptName?.text, '七沢またり');
+
+    await tester.tap(find.descendant(of: find.widgetWithText(InputDecorator, 'Idioma del nombre').first, matching: find.text('Japonés')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Alfabeto latino').last);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextFormField, 'Nombre en japonés'), findsNWidgets(creators - 1));
+    expect(cubit.state.project.metadata.actors.first.altNames, isEmpty);
+  });
+
+  testWidgets('las líneas en blanco de los créditos van entre personas: se quitan, se añaden y se arrastran', (tester) async {
+    await pumpView(tester, size: const Size(1280, 4000));
+    await tester.tap(find.text('Metadatos'));
+    await tester.pumpAndSettle();
+    List<bool> separated() => [for (final a in cubit.state.project.metadata.actors) a.separated];
+    final initial = separated();
+    expect(find.widgetWithText(InputChip, 'Línea en blanco'), findsNWidgets(maxCreditSeparators));
+    expect(find.widgetWithText(TextButton, 'Línea en blanco'), findsNothing);
+
+    await tester.tap(find.byTooltip('Quitar la línea en blanco').first);
+    await tester.pumpAndSettle();
+    final first = initial.indexOf(true);
+    expect(separated()[first], isFalse);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Línea en blanco').first);
+    await tester.pumpAndSettle();
+    expect(separated().first, isTrue);
+
+    // Con las dos en uso, una se mueve arrastrándola al último hueco.
+    final gaps = find.byWidgetPredicate((w) => w is DragTarget<int>);
+    final last = cubit.state.project.metadata.actors.length - 2;
+    await tester.dragFrom(tester.getCenter(find.widgetWithText(InputChip, 'Línea en blanco').first), tester.getCenter(gaps.at(last)) - tester.getCenter(find.widgetWithText(InputChip, 'Línea en blanco').first));
+    await tester.pumpAndSettle();
+    expect(separated().first, isFalse);
+    expect(separated()[last], isTrue);
   });
 
   testWidgets('el ojo de cada sección la quita o añade al índice', (tester) async {
@@ -349,6 +399,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('2013-11-22'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Fecha de publicación'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(InkWell, 'Fecha de publicación'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('YYYY-MM-DD'));
@@ -391,12 +443,25 @@ void main() {
     expect(cubit.state.imageJobs, isEmpty);
   });
 
-  testWidgets('ventana estrecha: las vistas no desbordan', (tester) async {
-    await pumpView(tester, size: const Size(640, 600));
+  testWidgets('el índice lateral desplaza el formulario sin cambiar de pestaña', (tester) async {
+    await pumpView(tester, size: const Size(1600, 900));
     await tester.tap(find.text('Metadatos'));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView).last, const Offset(0, -2000));
+    await tester.tap(find.widgetWithText(ListTile, 'Clasificación'));
     await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
+    expect(DefaultTabController.of(tester.element(find.byType(TabBarView))).index, 1);
+    expect(tester.getTopLeft(find.widgetWithText(Card, 'Identificación')).dy, lessThan(0));
+    expect(tester.getTopLeft(find.widgetWithText(Card, 'Clasificación')).dy, inInclusiveRange(0, 900));
+  });
+
+  testWidgets('ventana estrecha: las vistas no desbordan', (tester) async {
+    await pumpView(tester, size: const Size(640, 600));
+    for (final tab in ['Metadatos', 'Imágenes', 'Fuentes y CSS']) {
+      await tester.tap(find.text(tab));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(SingleChildScrollView).last, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: tab);
+    }
   });
 }

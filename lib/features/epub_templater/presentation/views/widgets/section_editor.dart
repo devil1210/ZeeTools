@@ -2,34 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '/common/theme/app_dimensions.dart';
-import '/common/widgets/toggle_field.dart';
-import '/common/widgets/confirm_dialog.dart';
 import '/common/widgets/app_text_field.dart';
+import '/common/widgets/confirm_dialog.dart';
+import '/common/widgets/form_page.dart';
 import '/common/widgets/form_section.dart';
-import '/common/widgets/responsive_row.dart';
 import '/common/widgets/outlined_dropdown.dart';
+import '/common/widgets/responsive_row.dart';
+import '/common/widgets/toggle_field.dart';
 import '../../../data/epub_template_builder.dart';
 import '../../../domain/section_kind.dart';
 import '../../../domain/template_section.dart';
 import '../../cubit/epub_templater_cubit.dart';
 
-class SectionEditor extends StatelessWidget {
-  const SectionEditor({super.key});
-
+class const SectionEditor({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final section = context.select((EpubTemplaterCubit c) => c.state.selected);
     if (section == null) return const Center(child: Text('Selecciona o añade una sección.'));
-    final revision = context.select((EpubTemplaterCubit c) => c.state.revision);
-    return _SectionForm(key: ValueKey('${section.key}-${section.kind.name}-$revision'), section: section);
+    return _SectionForm(key: ValueKey('${section.key}-${section.kind.name}-${context.select((EpubTemplaterCubit c) => c.state.revision)}'), section: section);
   }
 }
 
-class _SectionForm extends StatelessWidget {
-  const _SectionForm({super.key, required this.section});
-
-  final TemplateSection section;
-
+class const _SectionForm({super.key, required final TemplateSection section}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<EpubTemplaterCubit>();
@@ -37,11 +31,11 @@ class _SectionForm extends StatelessWidget {
     void update(TemplateSection Function(TemplateSection s) f) => cubit.updateSection(s.key, f);
     final isTitlePage = s.kind.layout == SectionLayout.titlePage;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(AppPadding.large, AppPadding.large, AppPadding.large, 96),
-      children: [
+    return FormPage(
+      sections: [
         FormSection(
           title: 'Sección',
+          icon: Icons.article_outlined,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -64,20 +58,13 @@ class _SectionForm extends StatelessWidget {
           children: [
             ResponsiveRow(
               children: [
-                DropdownButtonFormField<SectionKind>(
-                  initialValue: s.kind,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Tipo'),
+                OutlinedDropdown<SectionKind>(
+                  label: 'Tipo',
+                  value: s.kind,
                   onChanged: (kind) {
                     if (kind != null && kind != s.kind) cubit.changeKind(s.key, kind);
                   },
-                  items: [
-                    for (final kind in SectionKind.values)
-                      DropdownMenuItem(
-                        value: kind,
-                        child: Text(kind.label),
-                      ),
-                  ],
+                  items: [for (final kind in SectionKind.values) DropdownMenuItem(value: kind, child: Text(kind.label))],
                 ),
                 AppTextField(
                   label: 'Archivo',
@@ -92,6 +79,7 @@ class _SectionForm extends StatelessWidget {
         ),
         FormSection(
           title: isTitlePage ? 'Título de la obra' : 'Encabezado',
+          icon: Icons.title,
           children: [
             ResponsiveRow(
               children: [
@@ -118,19 +106,15 @@ class _SectionForm extends StatelessWidget {
                   onChanged: (v) => update((s) => s.copyWith(hideHeading: v)),
                 ),
                 if (s.kind.layout == SectionLayout.text)
-                  DropdownButtonFormField<HeadingStyle>(
-                    initialValue: s.headingStyle,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: 'Imagen del encabezado',
-                      helperText: switch (s.headingStyle) {
-                        HeadingStyle.text => null,
-                        HeadingStyle.imageBefore || HeadingStyle.imageAfter => 'Adorno pequeño (clase logo) junto al título.',
-                        HeadingStyle.imageTitle => 'La imagen sustituye al título visible; el encabezado queda oculto para el índice.',
-                        HeadingStyle.separatorPage => 'Se generan dos archivos: el índice apunta a la imagen a página completa y el título visible abre el siguiente.',
-                      },
-                      helperMaxLines: 3,
-                    ),
+                  OutlinedDropdown<HeadingStyle>(
+                    label: 'Imagen del encabezado',
+                    value: s.headingStyle,
+                    helper: switch (s.headingStyle) {
+                      HeadingStyle.text => null,
+                      HeadingStyle.imageBefore || HeadingStyle.imageAfter => 'Adorno pequeño (clase logo) junto al título.',
+                      HeadingStyle.imageTitle => 'La imagen sustituye al título visible; el encabezado queda oculto para el índice.',
+                      HeadingStyle.separatorPage => 'Se generan dos archivos: el índice apunta a la imagen a página completa y el título visible abre el siguiente.',
+                    },
                     onChanged: (v) => update((s) => s.copyWith(headingStyle: v ?? HeadingStyle.text)),
                     items: [for (final style in HeadingStyle.values) DropdownMenuItem(value: style, child: Text(style.label))],
                   ),
@@ -141,6 +125,7 @@ class _SectionForm extends StatelessWidget {
         if (s.kind.layout == SectionLayout.notice)
           FormSection(
             title: 'Advertencia',
+            icon: Icons.warning_amber_rounded,
             children: [
               OutlinedDropdown<ContentWarning>(
                 label: 'Tipo',
@@ -153,6 +138,7 @@ class _SectionForm extends StatelessWidget {
           ),
         FormSection(
           title: 'Índice',
+          icon: Icons.toc,
           children: [
             ResponsiveRow(
               flex: isTitlePage ? const [2, 1] : const [2, 4, 1],
@@ -171,9 +157,10 @@ class _SectionForm extends StatelessWidget {
                     helper: 'Vacío: título y subtítulo. También se usa como título del documento.',
                     onChanged: (v) => update((s) => s.copyWith(tocLabel: v)),
                   ),
-                DropdownButtonFormField<int>(
-                  initialValue: s.level.clamp(1, 6),
-                  decoration: const InputDecoration(labelText: 'Nivel', helperText: 'h1–h6'),
+                OutlinedDropdown<int>(
+                  label: 'Nivel',
+                  value: s.level.clamp(1, 6),
+                  helper: 'h1–h6',
                   onChanged: (v) => update((s) => s.copyWith(level: v ?? 1)),
                   items: [for (var l = 1; l <= 6; l++) DropdownMenuItem(value: l, child: Text('$l'))],
                 ),
@@ -183,6 +170,7 @@ class _SectionForm extends StatelessWidget {
         ),
         FormSection(
           title: 'Semántica y accesibilidad',
+          icon: Icons.accessibility_new,
           children: [
             SegmentedButton<BookMatter>(
               showSelectedIcon: false,

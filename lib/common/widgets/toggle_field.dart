@@ -4,14 +4,7 @@ import '../theme/app_dimensions.dart';
 
 // Interruptor con el borde, la altura y el resaltado de un campo de texto, para
 // alinearse con los campos que lo rodean.
-class ToggleField extends StatefulWidget {
-  const ToggleField({super.key, required this.label, required this.value, required this.onChanged, this.helper});
-
-  final String label;
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-  final String? helper;
-
+class const ToggleField({super.key, required final String label, required final bool value, required final ValueChanged<bool>? onChanged, final String? helper}) extends StatefulWidget {
   @override
   State<ToggleField> createState() => _ToggleFieldState();
 }
@@ -38,7 +31,9 @@ class _ToggleFieldState extends State<ToggleField> {
           ),
           child: Row(
             children: [
-              Expanded(child: Text(widget.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyLarge)),
+              Expanded(
+                child: Text(widget.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyLarge),
+              ),
               SizedBox(
                 height: AppSize.medium - 2,
                 child: FittedBox(
