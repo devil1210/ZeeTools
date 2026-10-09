@@ -99,6 +99,15 @@ MainText withMainLanguage(String text, String lang, List<LocalizedText> alternat
   );
 }
 
+// Idiomas en que se publica un libro.
+const bookLanguages = {
+  'es': 'Español',
+  'en': 'Inglés',
+  'ja': 'Japonés',
+  'zh': 'Chino',
+  'ko': 'Coreano',
+};
+
 const _languageNames = {'es': 'español', 'en': 'inglés', 'ja': 'japonés', 'ko': 'coreano', 'zh': 'chino', 'fr': 'francés', 'pt': 'portugués', 'it': 'italiano', 'de': 'alemán'};
 
 // Nombre en minúscula para las etiquetas («Título en japonés»); el código si no se conoce.

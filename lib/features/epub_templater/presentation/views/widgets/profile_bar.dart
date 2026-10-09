@@ -14,9 +14,7 @@ import '/inject_dependencies.dart';
 import '../../cubit/epub_templater_cubit.dart';
 
 // El nombre en edición es estado local: teclearlo solo reconstruye esta barra.
-class ProfileBar extends StatefulWidget {
-  const ProfileBar({super.key});
-
+class const ProfileBar({super.key}) extends StatefulWidget {
   @override
   State<ProfileBar> createState() => _ProfileBarState();
 }

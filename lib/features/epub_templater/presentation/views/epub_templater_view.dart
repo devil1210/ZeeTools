@@ -17,9 +17,7 @@ import 'widgets/profile_bar.dart';
 import 'widgets/section_editor.dart';
 import 'widgets/sections_panel.dart';
 
-class EpubTemplaterView extends StatelessWidget {
-  const EpubTemplaterView({super.key});
-
+class const EpubTemplaterView({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -29,9 +27,7 @@ class EpubTemplaterView extends StatelessWidget {
   }
 }
 
-class _EpubTemplaterContent extends StatefulWidget {
-  const _EpubTemplaterContent();
-
+class const _EpubTemplaterContent() extends StatefulWidget {
   @override
   State<_EpubTemplaterContent> createState() => _EpubTemplaterContentState();
 }
@@ -153,9 +149,7 @@ class _EpubTemplaterContentState extends State<_EpubTemplaterContent> {
 }
 
 // Los problemas de metadatos ya se señalan en su campo; aquí solo los de secciones y fuentes.
-class _IssuesBanner extends StatelessWidget {
-  const _IssuesBanner();
-
+class const _IssuesBanner() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final issues = templateIssues(context.select((EpubTemplaterCubit c) => c.state.project)).where((i) => i.scope != IssueScope.metadata).toList();

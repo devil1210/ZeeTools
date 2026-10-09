@@ -11,9 +11,7 @@ typedef _Row = ({BookMatter? header, TemplateSection? section});
 
 // Índice de secciones en el orden del spine, agrupado por división. Soltar una
 // sección bajo otro separador la cambia de división.
-class SectionsPanel extends StatelessWidget {
-  const SectionsPanel({super.key});
-
+class const SectionsPanel({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<EpubTemplaterCubit>();
@@ -92,12 +90,7 @@ class SectionsPanel extends StatelessWidget {
   }
 }
 
-class _MatterHeader extends StatelessWidget {
-  const _MatterHeader({super.key, required this.matter, required this.first});
-
-  final BookMatter matter;
-  final bool first;
-
+class const _MatterHeader({super.key, required final BookMatter matter, required final bool first}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -114,11 +107,7 @@ class _MatterHeader extends StatelessWidget {
   }
 }
 
-class AddSectionButton extends StatelessWidget {
-  const AddSectionButton({super.key, required this.onSelected});
-
-  final ValueChanged<SectionKind> onSelected;
-
+class const AddSectionButton({super.key, required final ValueChanged<SectionKind> onSelected}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<SectionKind>(
@@ -139,15 +128,7 @@ class AddSectionButton extends StatelessWidget {
   }
 }
 
-class _SectionTile extends StatelessWidget {
-  const _SectionTile({super.key, required this.section, required this.index, required this.selected, required this.onTap, required this.onToggleToc});
-
-  final TemplateSection section;
-  final int index;
-  final bool selected;
-  final VoidCallback onTap;
-  final VoidCallback onToggleToc;
-
+class const _SectionTile({super.key, required final TemplateSection section, required final int index, required final bool selected, required final VoidCallback onTap, required final VoidCallback onToggleToc}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = section;

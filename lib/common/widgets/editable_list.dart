@@ -3,27 +3,20 @@ import 'package:flutter/material.dart';
 import '../theme/app_dimensions.dart';
 
 // Lista de elementos con añadir, quitar y mover. Cada elemento recibe sus
-// controles para colocarlos donde no resten espacio a los campos. Los campos
+// controles para colocarlos donde no resten espacio a los campos; [gapBuilder]
+// dibuja lo que va entre el elemento [index] y el siguiente. Los campos
 // internos no son controlados, así que cada cambio de estructura renueva sus
 // claves para que tomen de nuevo su valor inicial.
-class EditableList<T> extends StatefulWidget {
-  const EditableList({
-    super.key,
-    required this.items,
-    required this.onChanged,
-    required this.itemBuilder,
-    required this.createItem,
-    required this.addLabel,
-    this.reorderable = true,
-  });
-
-  final List<T> items;
-  final ValueChanged<List<T>> onChanged;
-  final Widget Function(BuildContext context, T item, ValueChanged<T> update, Widget controls) itemBuilder;
-  final T Function() createItem;
-  final String addLabel;
-  final bool reorderable;
-
+class const EditableList<T>({
+  super.key,
+  required final List<T> items,
+  required final ValueChanged<List<T>> onChanged,
+  required final Widget Function(BuildContext context, int index, T item, ValueChanged<T> update, Widget controls) itemBuilder,
+  required final T Function() createItem,
+  required final String addLabel,
+  final bool reorderable = true,
+  final Widget Function(BuildContext context, int index)? gapBuilder,
+}) extends StatefulWidget {
   @override
   State<EditableList<T>> createState() => _EditableListState<T>();
 }
@@ -43,11 +36,12 @@ class _EditableListState<T> extends State<EditableList<T>> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: AppSpacing.medium,
       children: [
-        for (final (i, item) in items.indexed)
+        for (final (i, item) in items.indexed) ...[
           KeyedSubtree(
             key: ValueKey('$_generation-$i'),
             child: widget.itemBuilder(
               context,
+              i,
               item,
               (updated) => widget.onChanged([...items]..[i] = updated),
               Row(
@@ -86,6 +80,8 @@ class _EditableListState<T> extends State<EditableList<T>> {
               ),
             ),
           ),
+          if (widget.gapBuilder case final gap? when i < items.length - 1) gap(context, i),
+        ],
         OutlinedButton.icon(
           icon: const Icon(Icons.add),
           label: Text(widget.addLabel),
@@ -97,12 +93,7 @@ class _EditableListState<T> extends State<EditableList<T>> {
 }
 
 // Fila habitual: los campos ocupan el ancho y los controles quedan a la derecha.
-class EditableRow extends StatelessWidget {
-  const EditableRow({super.key, required this.child, required this.controls});
-
-  final Widget child;
-  final Widget controls;
-
+class const EditableRow({super.key, required final Widget child, required final Widget controls}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(

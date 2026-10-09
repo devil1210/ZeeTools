@@ -24,9 +24,11 @@ ThemeData buildAppTheme(ColorScheme colorScheme) {
     visualDensity: VisualDensity.compact,
     colorScheme: colorScheme,
     // Misma altura para campos de texto y desplegables; el relleno transparente
-    // habilita el sombreado al pasar el ratón.
+    // habilita el sombreado al pasar el ratón. La etiqueta queda siempre arriba
+    // para que la sugerencia o el estado del campo se vean sin enfocarlo.
     inputDecorationTheme: InputDecorationTheme(
       isDense: true,
+      floatingLabelBehavior: FloatingLabelBehavior.always,
       filled: true,
       fillColor: Colors.transparent,
       hoverColor: colorScheme.onSurface.withValues(alpha: 0.08),
