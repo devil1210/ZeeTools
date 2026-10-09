@@ -21,7 +21,6 @@ import '../../../epub_templater/domain/marc_relator.dart';
 import '../../../epub_templater/domain/subjects.dart';
 import '../../../epub_templater/domain/title_languages.dart';
 import '../../../epub_templater/presentation/views/widgets/amazon_lookup.dart';
-import '../../../epub_templater/presentation/views/widgets/form_fields.dart';
 import '../../data/models/zeepub_series.dart';
 import '../../data/models/zeepub_volume.dart';
 import '../../data/models/zeepub_workgroup.dart';
@@ -509,12 +508,6 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
     final tt = Theme.of(context).textTheme;
     final coverUrl = _buildCoverUrl();
 
-    final asinField = AppTextField(
-      label: 'ASIN de Amazon',
-      value: _asin,
-      hint: 'B0XXXXXXXX',
-      onChanged: (v) => setState(() => _asin = v.trim().toUpperCase()),
-    );
 
     return BlocConsumer<ZeepubEditorialCubit, ZeepubEditorialState>(
       listener: (BuildContext context, ZeepubEditorialState state) {
@@ -747,7 +740,6 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
                       title: 'Identificadores',
                       children: [
                         AmazonLookup(
-                          asin: _asin,
                           metadata: _toBookMetadata(),
                           onApply: (updater) {
                             setState(() {
@@ -768,7 +760,13 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
                               }
                             });
                           },
-                          field: asinField,
+                          fields: (lookup) => AppTextField(
+                            label: 'ASIN de Amazon',
+                            value: _asin,
+                            hint: 'B0XXXXXXXX',
+                            suffix: lookup,
+                            onChanged: (v) => setState(() => _asin = v.trim().toUpperCase()),
+                          ),
                         ),
                         ResponsiveRow(
                           children: [
@@ -1052,7 +1050,7 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
                           addLabel: 'Añadir persona',
                           createItem: () => const Actor(roles: [MarcRelator.aut]),
                           onChanged: (v) => setState(() => _actors = v),
-                          itemBuilder: (context, actor, onChanged, controls) => _ActorEditor(
+                          itemBuilder: (context, index, actor, onChanged, controls) => _ActorEditor(
                             actor: actor,
                             onChanged: onChanged,
                             controls: controls,
@@ -1128,7 +1126,7 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
                           addLabel: 'Añadir editorial o fansub',
                           createItem: () => '',
                           onChanged: (v) => setState(() => _publishers = v),
-                          itemBuilder: (context, publisher, onChanged, controls) => EditableRow(
+                          itemBuilder: (context, index, publisher, onChanged, controls) => EditableRow(
                             controls: controls,
                             child: AppTextField(
                               label: 'Editorial / Fansub',
