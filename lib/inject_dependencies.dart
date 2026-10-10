@@ -32,6 +32,10 @@ import 'features/plugins/data/plugin_registry.dart';
 import 'features/plugins/data/plugin_repository.dart';
 import 'features/plugins/presentation/cubit/plugins_cubit.dart';
 import 'features/zeepub_editorial/zeepub_editorial_extension.dart';
+import 'features/zeepub_editorial/plugins/zeepub_catalog_extension.dart';
+import 'features/zeepub_editorial/plugins/zeepub_fansub_extension.dart';
+import 'features/zeepub_editorial/plugins/zeepub_scheduler_extension.dart';
+import 'features/zeepub_editorial/plugins/zeepub_uploader_extension.dart';
 
 
 final getIt = GetIt.instance;
@@ -45,6 +49,10 @@ Future<void> injectDependencies() async {
   // Plugins System
   final pluginRegistry = PluginRegistry();
   pluginRegistry.register(const ZeepubEditorialExtension());
+  pluginRegistry.register(const ZeepubCatalogExtension());
+  pluginRegistry.register(const ZeepubSchedulerExtension());
+  pluginRegistry.register(const ZeepubFansubExtension());
+  pluginRegistry.register(const ZeepubUploaderExtension());
   getIt.registerLazySingleton<PluginRegistry>(() => pluginRegistry);
   getIt.registerLazySingleton<PluginRepository>(() => PluginRepository(getIt()));
   getIt.registerLazySingleton<PluginsCubit>(() => PluginsCubit(getIt()));

@@ -13,6 +13,7 @@ dependencies:
   archive: ^4.0.9
   cached_network_image: ^4.0.4
   collection: ^1.19.1
+  crypto: ^3.0.7
   desktop_drop: ^0.8.4
   file_picker: ^13.1.0
   flutter:

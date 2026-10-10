@@ -115,6 +115,8 @@ class PluginManifest {
       'send' => Icons.send_rounded,
       'settings' => Icons.settings_rounded,
       'build' => Icons.build_rounded,
+      'calendar' || 'calendar_month' || 'calendar_today' || 'schedule' => Icons.calendar_month_rounded,
+      'groups' || 'group' || 'people' => Icons.groups_rounded,
       _ => Icons.extension_rounded,
     };
   }
