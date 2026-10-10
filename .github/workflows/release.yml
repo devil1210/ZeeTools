@@ -3,16 +3,16 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*'
     branches:
       - master
       - main
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag a compilar y publicar (p. ej. v0.5.0)'
+        description: 'Tag a compilar y publicar (p. ej. v0.4.8.1)'
         required: false
-        default: 'v0.5.0'
+        default: 'v0.4.8.1'
 
 permissions:
   contents: write
@@ -43,13 +43,21 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build Windows
-        run: flutter build windows --release
+        run: flutter build windows --release --build-name=0.4.8 --build-number=1
 
       - name: Package Windows
         shell: bash
         run: |
+          TAG_NAME="${{ inputs.tag || github.ref_name }}"
+          if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "master" ] || [ "$TAG_NAME" = "main" ]; then
+            TAG_NAME="v0.4.8.1"
+          fi
+          VERSION="${TAG_NAME#v}"
           mkdir -p dist
-          (cd build/windows/x64/runner/Release && 7z a -r "$GITHUB_WORKSPACE/dist/ZeeTools-v0.5.0-windows-x64.zip" .)
+          # Paquete completo en ZIP con todas las librerias y assets
+          (cd build/windows/x64/runner/Release && 7z a -r "$GITHUB_WORKSPACE/dist/ZeeTools-$VERSION-windows-x64.zip" .)
+          # Ejecutable directo
+          cp build/windows/x64/runner/Release/zeetools.exe dist/zeetools.exe
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -65,8 +73,17 @@ jobs:
         run: |
           TAG_NAME="${{ inputs.tag || github.ref_name }}"
           if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "master" ] || [ "$TAG_NAME" = "main" ]; then
-            TAG_NAME="v0.5.0"
+            TAG_NAME="v0.4.8.1"
           fi
+          VERSION="${TAG_NAME#v}"
           echo "Creating or updating release for $TAG_NAME"
-          gh release create "$TAG_NAME" dist/* --title "ZeeTools $TAG_NAME (Consola Editorial ZeePub)" --notes "### Novedades en $TAG_NAME:\n- ✨ Nueva **Consola Editorial ZeePub** integrada\n- ✨ Sugerencias inteligentes de metadatos con Gemini IA\n- ✨ Publicación instantánea y programada a Telegram\n- ✨ Selector rápido de Fansubs y Filtros por Color/Sin Censura\n\nDescomprime \`ZeeTools-v0.5.0-windows-x64.zip\` y ejecuta \`zeetools.exe\`." || gh release upload "$TAG_NAME" dist/* --clobber
+          gh release create "$TAG_NAME" dist/* --title "ZeeTools $TAG_NAME (v0.4.8.1 con Consola Editorial)" --notes "### Novedades en $TAG_NAME:
+- ✨ Actualizado y sincronizado con **ZeeTools v0.4.8**
+- ✨ Consola Editorial ZeePub adaptada a las nuevas APIs (AmazonLookup y EditableList)
+- ✨ Metadatos, tomos, series y asistencia de IA Gemini
+- ✨ Publicación instantánea y programada a Telegram
+
+### Descarga para Windows x64:
+- **Recomendado (Completo):** Descarga \`ZeeTools-$VERSION-windows-x64.zip\`, descomprímelo y ejecuta \`zeetools.exe\`.
+- **Ejecutable directo:** Si ya tienes una instalación previa de ZeeTools, puedes descargar \`zeetools.exe\` directamente y reemplazarlo en tu carpeta." || gh release upload "$TAG_NAME" dist/* --clobber
         shell: bash
