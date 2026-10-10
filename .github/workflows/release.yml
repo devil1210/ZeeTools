@@ -54,9 +54,7 @@ jobs:
           fi
           VERSION="${TAG_NAME#v}"
           mkdir -p dist
-          # Paquete completo en ZIP con todas las librerias y assets
           (cd build/windows/x64/runner/Release && 7z a -r "$GITHUB_WORKSPACE/dist/ZeeTools-$VERSION-windows-x64.zip" .)
-          # Ejecutable directo
           cp build/windows/x64/runner/Release/zeetools.exe dist/zeetools.exe
 
       - name: Upload build artifact
@@ -76,14 +74,17 @@ jobs:
             TAG_NAME="v0.4.8.1"
           fi
           VERSION="${TAG_NAME#v}"
-          echo "Creating or updating release for $TAG_NAME"
-          gh release create "$TAG_NAME" dist/* --title "ZeeTools $TAG_NAME (v0.4.8.1 con Consola Editorial)" --notes "### Novedades en $TAG_NAME:
-- ✨ Actualizado y sincronizado con **ZeeTools v0.4.8**
-- ✨ Consola Editorial ZeePub adaptada a las nuevas APIs (AmazonLookup y EditableList)
-- ✨ Metadatos, tomos, series y asistencia de IA Gemini
-- ✨ Publicación instantánea y programada a Telegram
+          cat << 'EOF' > notes.md
+          ### Novedades en ZeeTools v0.4.8.1:
+          - Sincronizado con la versión oficial ZeeTools v0.4.8.
+          - Consola Editorial ZeePub adaptada a las nuevas APIs de v0.4.8 (AmazonLookup y EditableList).
+          - Soporte completo para edición de metadatos, series, tomos y publicaciones.
+          - Asistente de IA Gemini para completado inteligente.
 
-### Descarga para Windows x64:
-- **Recomendado (Completo):** Descarga \`ZeeTools-$VERSION-windows-x64.zip\`, descomprímelo y ejecuta \`zeetools.exe\`.
-- **Ejecutable directo:** Si ya tienes una instalación previa de ZeeTools, puedes descargar \`zeetools.exe\` directamente y reemplazarlo en tu carpeta." || gh release upload "$TAG_NAME" dist/* --clobber
+          ### Instalación en Windows:
+          - **Recomendado:** Descomprime `ZeeTools-0.4.8.1-windows-x64.zip` y ejecuta `zeetools.exe`.
+          - **Actualización directa:** Puedes descargar `zeetools.exe` directamente si ya tienes una versión previa instalada.
+          EOF
+          sed -i 's/^[ 	]*//' notes.md
+          gh release create "$TAG_NAME" dist/* --title "ZeeTools $TAG_NAME (v0.4.8.1 con Consola Editorial)" --notes-file notes.md || gh release upload "$TAG_NAME" dist/* --clobber
         shell: bash
