@@ -1,4 +1,4 @@
-﻿import '/features/zeepub_editorial/data/datasources/zeepub_api_client.dart';
+import '/features/zeepub_editorial/data/datasources/zeepub_api_client.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '/features/zeepub_editorial/data/models/zeepub_series.dart';
@@ -499,6 +499,42 @@ class ZeepubEditorialCubit extends Cubit<ZeepubEditorialState> {
         saving: false,
         errorMessage: 'Error al guardar serie: $e',
       ));
+    }
+  }
+
+  Future<String?> createSeries({
+    required String name,
+    String? seriesSpanish,
+    String? seriesEnglish,
+    String? author,
+    String? publisher,
+    String? bookType,
+    String? description,
+  }) async {
+    emit(state.copyWith(saving: true, clearError: true, clearSuccess: true));
+    try {
+      final res = await _repo.createSeries({
+        'name': name,
+        if (seriesSpanish != null && seriesSpanish.isNotEmpty) 'series_spanish': seriesSpanish,
+        if (seriesEnglish != null && seriesEnglish.isNotEmpty) 'series_english': seriesEnglish,
+        if (author != null && author.isNotEmpty) 'author': author,
+        if (publisher != null && publisher.isNotEmpty) 'publisher': publisher,
+        if (bookType != null && bookType.isNotEmpty) 'book_type': bookType,
+        if (description != null && description.isNotEmpty) 'description': description,
+      });
+      emit(state.copyWith(
+        saving: false,
+        successMessage: 'Serie "$name" registrada en el catálogo.',
+      ));
+      await loadSeriesCatalog(reset: true);
+      await init();
+      return res['series_id'] as String? ?? res['id'] as String?;
+    } catch (e) {
+      emit(state.copyWith(
+        saving: false,
+        errorMessage: 'Error al registrar serie: $e',
+      ));
+      return null;
     }
   }
 

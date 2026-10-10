@@ -1,4 +1,4 @@
-﻿import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '/features/zeepub_editorial/data/datasources/zeepub_api_client.dart';
 import '/features/zeepub_editorial/data/models/zeepub_ai_suggestion.dart';
@@ -93,6 +93,9 @@ class ZeepubEditorialRepository {
 
   Future<void> updateSeries(String seriesHash, Map<String, dynamic> payload) =>
       _client.updateSeries(seriesHash, payload);
+
+  Future<Map<String, dynamic>> createSeries(Map<String, dynamic> payload) =>
+      _client.createSeries(payload);
 
   // Volumes
   Future<({List<ZeepubVolume> items, int total, int page, int totalPages})> getVolumes({

@@ -5,16 +5,23 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '/common/utils/either.dart';
+import '/features/epub_templater/domain/book_metadata.dart';
+import '/features/metadata_editor/data/epub_metadata_repo.dart';
 import '/features/zeepub_editorial/data/models/zeepub_series.dart';
 import '/features/zeepub_editorial/data/models/zeepub_volume.dart';
 import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_cubit.dart';
 import '/features/zeepub_editorial/presentation/cubit/zeepub_editorial_state.dart';
+import '/inject_dependencies.dart';
 import '../widgets/zeepub_server_config_dialog.dart';
+import 'widgets/epub_metadata_validator_card.dart';
+import 'widgets/series_destination_selector.dart';
 
 /// Vista modular del Subidor / Vinculador de EPUBs de ZeePub.
 ///
-/// Permite seleccionar un archivo EPUB local, calcular su hash SHA-256
-/// y sincronizarlo directamente con el catálogo del backend de ZeePub.
+/// Permite seleccionar un archivo EPUB local, auditar y validar sus metadatos
+/// internos con calidad editorial, calcular su hash SHA-256 y asociarlo
+/// a una serie existente o dar de alta una nueva serie en el backend.
 class ZeepubUploaderView extends StatefulWidget {
   const ZeepubUploaderView({super.key});
 
@@ -28,9 +35,26 @@ class _ZeepubUploaderViewState extends State<ZeepubUploaderView> {
   int _fileSizeBytes = 0;
   String? _sha256Hash;
   bool _isProcessing = false;
+  String? _parseError;
 
+  BookMetadata? _parsedMetadata;
+
+  // Modo de Destino
+  bool _isCreatingNewSeries = false;
+
+  // Modo Existente
   ZeepubSeries? _selectedSeries;
   ZeepubVolume? _selectedVolume;
+
+  // Modo Nueva Serie Controllers
+  final _newSeriesNameController = TextEditingController();
+  final _newSeriesSpanishController = TextEditingController();
+  final _newSeriesAuthorController = TextEditingController();
+  final _newSeriesPublisherController = TextEditingController();
+  final _newSeriesVolumeNumberController = TextEditingController(text: '1');
+  final _newSeriesVolumeTitleController = TextEditingController();
+  final _newSeriesDescController = TextEditingController();
+  String _selectedBookType = 'Novela Ligera';
 
   @override
   void initState() {
@@ -41,6 +65,18 @@ class _ZeepubUploaderViewState extends State<ZeepubUploaderView> {
         cubit.init();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _newSeriesNameController.dispose();
+    _newSeriesSpanishController.dispose();
+    _newSeriesAuthorController.dispose();
+    _newSeriesPublisherController.dispose();
+    _newSeriesVolumeNumberController.dispose();
+    _newSeriesVolumeTitleController.dispose();
+    _newSeriesDescController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickEpubFile() async {
@@ -56,21 +92,48 @@ class _ZeepubUploaderViewState extends State<ZeepubUploaderView> {
 
       setState(() {
         _isProcessing = true;
+        _parseError = null;
         _selectedFilePath = path;
         _fileName = path.split(Platform.pathSeparator).last;
       });
 
+      // 1. Cálculo de hash y tamaño
       final file = File(path);
       final bytes = await file.readAsBytes();
       final hash = sha256.convert(bytes).toString();
 
+      // 2. Extracción y Validación de Metadatos con EpubMetadataRepository
+      final repo = getIt<EpubMetadataRepository>();
+      final loadRes = await repo.load(path);
+
+      BookMetadata? extractedMeta;
+      String? loadErr;
+
+      if (loadRes case Right(value: final meta)) {
+        extractedMeta = meta;
+        repo.unload(path);
+      } else if (loadRes case Left(value: final err)) {
+        loadErr = err;
+        repo.unload(path);
+      }
+
       setState(() {
         _fileSizeBytes = bytes.length;
         _sha256Hash = hash;
+        _parsedMetadata = extractedMeta;
+        _parseError = loadErr;
         _isProcessing = false;
       });
+
+      // 3. Auto-rellenado inteligente de campos
+      if (extractedMeta != null && mounted) {
+        _applyIntelligentMatching(extractedMeta);
+      }
     } catch (e) {
-      setState(() => _isProcessing = false);
+      setState(() {
+        _isProcessing = false;
+        _parseError = e.toString();
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -82,26 +145,97 @@ class _ZeepubUploaderViewState extends State<ZeepubUploaderView> {
     }
   }
 
-  String _formatFileSize(int bytes) {
-    if (bytes <= 0) return '0 B';
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
-  }
+  void _applyIntelligentMatching(BookMetadata meta) {
+    final cubit = context.read<ZeepubEditorialCubit>();
+    final seriesList = cubit.state.seriesList;
 
-  Future<void> _syncWithZeePub(ZeepubEditorialCubit cubit) async {
-    if (_selectedVolume == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, selecciona una serie y un volumen de destino.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
+    final epubSeries = meta.series.trim();
+    final epubAuthor = meta.actors.where((a) => a.isCreator || a.name.isNotEmpty).firstOrNull?.name ?? '';
+    final epubPublisher = meta.publishers.isNotEmpty ? meta.publishers.first : '';
+    final epubVolume = meta.seriesIndex.trim().isNotEmpty ? meta.seriesIndex.trim() : '1';
+    final epubTitle = meta.title.trim();
+    final epubDesc = meta.description.trim();
+
+    // Buscar coincidencia en series existentes
+    ZeepubSeries? matchedSeries;
+    if (epubSeries.isNotEmpty) {
+      matchedSeries = seriesList.where((s) {
+        final normS = s.name.toLowerCase().trim();
+        final normE = epubSeries.toLowerCase().trim();
+        return normS == normE || s.seriesSpanish.toLowerCase().trim() == normE;
+      }).firstOrNull;
     }
 
-    final targetVolume = _selectedVolume!;
-    await cubit.syncVolumeFile(targetVolume.bookHash);
+    if (matchedSeries != null) {
+      // Coincidencia encontrada: asociar a la serie existente
+      setState(() {
+        _isCreatingNewSeries = false;
+        _selectedSeries = matchedSeries;
+        _selectedVolume = null;
+      });
+    } else {
+      // No existe en catálogo: proponer crear nueva serie y pre-rellenar
+      setState(() {
+        _isCreatingNewSeries = true;
+        _newSeriesNameController.text = epubSeries.isNotEmpty ? epubSeries : epubTitle;
+        _newSeriesSpanishController.text = epubSeries.isNotEmpty ? epubSeries : epubTitle;
+        _newSeriesAuthorController.text = epubAuthor;
+        _newSeriesPublisherController.text = epubPublisher;
+        _newSeriesVolumeNumberController.text = epubVolume;
+        _newSeriesVolumeTitleController.text = epubTitle;
+        _newSeriesDescController.text = epubDesc;
+        if (meta.bookType.isNotEmpty) {
+          _selectedBookType = meta.bookType;
+        }
+      });
+    }
+  }
+
+  Future<void> _handleUploadAndSync(ZeepubEditorialCubit cubit) async {
+    if (_isCreatingNewSeries) {
+      // Modo: Crear nueva serie y registrar
+      final name = _newSeriesNameController.text.trim();
+      if (name.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor, ingresa el nombre de la nueva serie.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final seriesId = await cubit.createSeries(
+        name: name,
+        seriesSpanish: _newSeriesSpanishController.text.trim(),
+        author: _newSeriesAuthorController.text.trim(),
+        publisher: _newSeriesPublisherController.text.trim(),
+        bookType: _selectedBookType,
+        description: _newSeriesDescController.text.trim(),
+      );
+
+      if (seriesId != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Serie "$name" creada exitosamente con ID: $seriesId'),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+      }
+    } else {
+      // Modo: Vincular a volumen existente
+      if (_selectedVolume == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor, selecciona una serie y un volumen de destino.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      await cubit.syncVolumeFile(_selectedVolume!.bookHash);
+    }
   }
 
   @override
@@ -137,10 +271,13 @@ class _ZeepubUploaderViewState extends State<ZeepubUploaderView> {
       builder: (context, state) {
         final cubit = context.read<ZeepubEditorialCubit>();
 
-        // Filtro de volúmenes correspondientes a la serie seleccionada
         final availableVolumes = _selectedSeries != null
             ? state.volumes.where((v) => v.seriesId == _selectedSeries!.id || v.seriesName == _selectedSeries!.name).toList()
             : state.volumes;
+
+        final canSubmit = _selectedFilePath != null &&
+            !state.saving &&
+            (!_isCreatingNewSeries ? _selectedVolume != null : _newSeriesNameController.text.trim().isNotEmpty);
 
         return Scaffold(
           appBar: AppBar(
@@ -153,7 +290,7 @@ class _ZeepubUploaderViewState extends State<ZeepubUploaderView> {
                   children: [
                     const Text('Subidor de EPUBs', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
                     Text(
-                      'Vinculación de archivos locales con hash al backend ZeePub',
+                      'Validación de metadatos, cálculo de hash y vinculación con ZeePub',
                       style: TextStyle(color: cs.onSurfaceVariant.withValues(alpha: 0.8), fontSize: 11),
                     ),
                   ],
@@ -179,11 +316,11 @@ class _ZeepubUploaderViewState extends State<ZeepubUploaderView> {
             padding: const EdgeInsets.all(24),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 800),
+                constraints: const BoxConstraints(maxWidth: 820),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Card 1: Selección del archivo EPUB
+                    // Paso 1: Selección del archivo EPUB
                     Card(
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -192,162 +329,83 @@ class _ZeepubUploaderViewState extends State<ZeepubUploaderView> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF6366F1).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.file_present_rounded, color: Color(0xFF818CF8)),
-                                ),
-                                const SizedBox(width: 14),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('1. Archivo EPUB Local', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                    Text('Selecciona el libro generado o editado en ZeeTools', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-                                  ],
-                                ),
-                                const Spacer(),
-                                FilledButton.icon(
-                                  icon: const Icon(Icons.folder_open_rounded, size: 18),
-                                  label: const Text('Elegir EPUB'),
-                                  onPressed: _isProcessing ? null : _pickEpubFile,
-                                ),
-                              ],
-                            ),
-                            if (_isProcessing) ...[
-                              const SizedBox(height: 20),
-                              const Center(child: LinearProgressIndicator()),
-                            ] else if (_selectedFilePath != null) ...[
-                              const SizedBox(height: 20),
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            _fileName ?? '',
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        Text(_formatFileSize(_fileSizeBytes), style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text('Ruta: $_selectedFilePath', style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
-                                    const SizedBox(height: 8),
-                                    SelectableText(
-                                      'SHA-256: ${_sha256Hash ?? 'Calculando...'}',
-                                      style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: const Color(0xFF38BDF8).withValues(alpha: 0.9)),
-                                    ),
-                                  ],
-                                ),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                            ],
+                              child: const Icon(Icons.file_present_rounded, color: Color(0xFF818CF8)),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('1. Archivo EPUB Local', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  Text(
+                                    _selectedFilePath == null
+                                        ? 'Selecciona el libro para analizar sus metadatos e integridad'
+                                        : 'Archivo cargado para validación',
+                                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            FilledButton.icon(
+                              icon: const Icon(Icons.folder_open_rounded, size: 18),
+                              label: Text(_selectedFilePath == null ? 'Elegir EPUB' : 'Cambiar EPUB'),
+                              onPressed: _isProcessing ? null : _pickEpubFile,
+                            ),
                           ],
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
-                    // Card 2: Destino en el catálogo ZeePub
-                    Card(
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.3)),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF6366F1).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.link_rounded, color: Color(0xFF818CF8)),
-                                ),
-                                const SizedBox(width: 14),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('2. Vincular con Volumen en ZeePub', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                    Text('Elige la serie y el volumen para asociar el archivo', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            DropdownButtonFormField<ZeepubSeries>(
-                              initialValue: _selectedSeries,
-                              isExpanded: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Serie / Novela',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.bookmark_outline),
-                              ),
-                              items: [
-                                for (final s in state.seriesList)
-                                  DropdownMenuItem(value: s, child: Text(s.name, overflow: TextOverflow.ellipsis)),
-                              ],
-                              onChanged: (val) {
-                                setState(() {
-                                  _selectedSeries = val;
-                                  _selectedVolume = null;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            DropdownButtonFormField<ZeepubVolume>(
-                              initialValue: _selectedVolume,
-                              isExpanded: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Volumen de destino',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.book_outlined),
-                              ),
-                              items: [
-                                for (final v in availableVolumes)
-                                  DropdownMenuItem(
-                                    value: v,
-                                    child: Text(
-                                      'Vol. ${v.volume != null ? (v.volume! % 1 == 0 ? v.volume!.toInt() : v.volume) : "?"} - ${v.title.isNotEmpty ? v.title : (v.spanishTitle.isNotEmpty ? v.spanishTitle : "Sin título")} (${v.bookHash.substring(0, v.bookHash.length > 8 ? 8 : v.bookHash.length)})',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                              ],
-                              onChanged: (val) => setState(() => _selectedVolume = val),
-                            ),
-                          ],
-                        ),
-                      ),
+                    // Auditoría y Validación de Metadatos
+                    EpubMetadataValidatorCard(
+                      metadata: _parsedMetadata,
+                      fileName: _fileName,
+                      filePath: _selectedFilePath,
+                      fileSizeBytes: _fileSizeBytes,
+                      sha256Hash: _sha256Hash,
+                      isProcessing: _isProcessing,
+                      error: _parseError,
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Paso 2: Destino (Serie Existente o Nueva Serie)
+                    SeriesDestinationSelector(
+                      isCreatingNew: _isCreatingNewSeries,
+                      onModeChanged: (val) => setState(() => _isCreatingNewSeries = val),
+                      seriesList: state.seriesList,
+                      selectedSeries: _selectedSeries,
+                      onSeriesChanged: (val) => setState(() {
+                        _selectedSeries = val;
+                        _selectedVolume = null;
+                      }),
+                      availableVolumes: availableVolumes,
+                      selectedVolume: _selectedVolume,
+                      onVolumeChanged: (val) => setState(() => _selectedVolume = val),
+                      newSeriesNameController: _newSeriesNameController,
+                      newSeriesSpanishController: _newSeriesSpanishController,
+                      newSeriesAuthorController: _newSeriesAuthorController,
+                      newSeriesPublisherController: _newSeriesPublisherController,
+                      newSeriesVolumeNumberController: _newSeriesVolumeNumberController,
+                      newSeriesVolumeTitleController: _newSeriesVolumeTitleController,
+                      newSeriesDescController: _newSeriesDescController,
+                      selectedBookType: _selectedBookType,
+                      onBookTypeChanged: (val) => setState(() => _selectedBookType = val),
                     ),
 
                     const SizedBox(height: 24),
 
-                    // Card 3: Botón de acción
+                    // Botón de acción principal
                     FilledButton.icon(
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 18),
@@ -356,14 +414,16 @@ class _ZeepubUploaderViewState extends State<ZeepubUploaderView> {
                       ),
                       icon: state.saving
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.sync_rounded),
+                          : Icon(_isCreatingNewSeries ? Icons.add_task_rounded : Icons.sync_rounded),
                       label: Text(
-                        state.saving ? 'Sincronizando con ZeePub...' : 'Vincular y Sincronizar EPUB',
+                        state.saving
+                            ? 'Procesando con ZeePub...'
+                            : _isCreatingNewSeries
+                                ? 'Dar de Alta Serie y Vincular EPUB'
+                                : 'Vincular y Sincronizar EPUB',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
-                      onPressed: (_selectedFilePath == null || _selectedVolume == null || state.saving)
-                          ? null
-                          : () => _syncWithZeePub(cubit),
+                      onPressed: canSubmit ? () => _handleUploadAndSync(cubit) : null,
                     ),
                   ],
                 ),

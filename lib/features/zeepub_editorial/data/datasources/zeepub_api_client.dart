@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 
 import '/features/zeepub_editorial/data/models/zeepub_ai_suggestion.dart';
@@ -322,6 +322,17 @@ class ZeepubApiClient {
       await _post('/api/bot', {
         'action': 'update_series',
         'data': {'series_hash': seriesHash, ...payload}
+      });
+    }
+  }
+
+  Future<Map<String, dynamic>> createSeries(Map<String, dynamic> payload) async {
+    try {
+      return await _post('/api/editorial/series', payload);
+    } catch (_) {
+      return await _post('/api/bot', {
+        'action': 'create_series',
+        'data': payload,
       });
     }
   }
