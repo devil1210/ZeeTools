@@ -1,15 +1,45 @@
 import 'package:flutter/material.dart';
 
+/// Represents all metadata associated with an installed ZeeTools plugin.
+///
+/// Parsed from a `manifest.json` file located in the plugin's directory.
+/// This object is the single source of truth for plugin identity, display
+/// information, and runtime behavior flags.
 class PluginManifest {
+  /// The unique identifier for this plugin, used for routing and storage keys.
   final String id;
+
+  /// The human-readable name displayed in the dashboard and settings.
   final String name;
+
+  /// The semver-compatible version string (e.g. `"1.2.0"`).
   final String version;
+
+  /// The name of the author or team that published this plugin.
   final String author;
+
+  /// A short description of the plugin's purpose, shown in the details dialog.
   final String description;
+
+  /// The icon key used to resolve an [IconData] via [iconData].
+  ///
+  /// Accepted values: `auto_stories`, `book`, `menu_book`, `translate`, etc.
+  /// Falls back to [Icons.extension_rounded] for any unrecognized value.
   final String icon;
+
+  /// Whether the plugin is currently active and shown on the dashboard.
   final bool isEnabled;
+
+  /// The absolute path to the directory where this plugin is installed.
   final String directoryPath;
+
+  /// The relative path to the plugin's Dart entry point, if declared.
+  ///
+  /// Used by native Dart extension plugins. Optional for manifest-only plugins.
   final String? entryPoint;
+
+  /// Any additional fields parsed from `manifest.json` not covered by the
+  /// standard schema.
   final Map<String, dynamic> extra;
 
   const PluginManifest({
@@ -25,6 +55,12 @@ class PluginManifest {
     this.extra = const {},
   });
 
+  /// Constructs a [PluginManifest] from a parsed `manifest.json` map.
+  ///
+  /// [directoryPath] is the absolute path to the installed plugin folder.
+  /// [isEnabled] reflects the persisted user toggle state (default: `true`).
+  ///
+  /// All fields fall back to safe defaults when missing from [json].
   factory PluginManifest.fromJson(
     Map<String, dynamic> json,
     String directoryPath, {
@@ -44,9 +80,8 @@ class PluginManifest {
     );
   }
 
-  PluginManifest copyWith({
-    bool? isEnabled,
-  }) {
+  /// Returns a copy with [isEnabled] overridden.
+  PluginManifest copyWith({bool? isEnabled}) {
     return PluginManifest(
       id: id,
       name: name,
@@ -61,6 +96,7 @@ class PluginManifest {
     );
   }
 
+  /// The Material icon corresponding to the [icon] key declared in the manifest.
   IconData get iconData {
     return switch (icon.toLowerCase().trim()) {
       'auto_stories' => Icons.auto_stories_rounded,
