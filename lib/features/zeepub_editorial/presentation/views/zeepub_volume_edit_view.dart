@@ -89,32 +89,50 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
   Demographic? _demographic;
   late Set<String> _selectedGenres;
   int? _rating;
+  ZeepubVolume? _lastLoadedDetail;
 
   @override
   void initState() {
     super.initState();
-    final v = widget.volume;
+    _loadFromVolume(widget.volume);
+  }
 
+  void _loadFromVolume(ZeepubVolume v) {
     _customCoverUrl = v.coverUrl;
-    _asin = '';
-    _isbn13 = '';
-    _isbn10 = '';
-    _identifier = v.bookHash;
+    _asin = v.asin ?? '';
+
+    final rawIsbn = (v.isbn ?? '').trim();
+    if (rawIsbn.replaceAll('-', '').length == 13 || rawIsbn.startsWith('978')) {
+      _isbn13 = rawIsbn;
+      _isbn10 = '';
+    } else if (rawIsbn.replaceAll('-', '').length == 10) {
+      _isbn10 = rawIsbn;
+      _isbn13 = '';
+    } else {
+      _isbn13 = rawIsbn;
+      _isbn10 = '';
+    }
+
+    String cleanId = (v.uuid ?? '').trim();
+    if (cleanId.startsWith('urn:uuid:')) {
+      cleanId = cleanId.substring('urn:uuid:'.length);
+    }
+    _identifier = cleanId.isNotEmpty ? cleanId : v.bookHash;
 
     _originalLanguage = OriginalLanguage.ja;
     _isStandalone = v.volume == null && v.seriesName.isEmpty;
     _series = v.seriesName;
     _seriesSpanish = v.seriesSpanish ?? '';
     _seriesEnglish = v.seriesName;
-    _seriesRomaji = '';
-    _seriesNative = '';
+    _seriesRomaji = v.seriesRomaji ?? '';
+    _seriesNative = v.japaneseTitle;
     _volumeNumber = v.volume != null ? (v.volume! % 1 == 0 ? v.volume!.toInt().toString() : v.volume!.toString()) : '';
 
     _title = v.title;
     _titleSpanish = v.spanishTitle;
     _titleEnglish = v.englishTitle.isNotEmpty ? v.englishTitle : v.title;
-    _titleRomaji = '';
-    _titleNative = '';
+    _titleRomaji = v.romajiTitle;
+    _titleNative = v.japaneseTitle;
     _titleSort = '';
 
     _actors = [];
@@ -134,9 +152,9 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
       _actors.add(const Actor(roles: [MarcRelator.aut]));
     }
 
-    _bookLanguage = 'es';
+    _bookLanguage = v.language.isNotEmpty ? v.language : 'es';
     _bookType = 'Novela ligera';
-    _publishDate = '';
+    _publishDate = v.publishedDate ?? '';
     _publishers = [];
     if (v.publisher != null && v.publisher!.trim().isNotEmpty) {
       _publishers.add(v.publisher!.trim());
@@ -150,8 +168,8 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
 
     _description = v.description ?? '';
     _demographic = null;
-    _selectedGenres = {};
-    _rating = null;
+    _selectedGenres = Set.from(v.tags);
+    _rating = v.rating > 0 ? v.rating.round() : null;
   }
 
   void _onSeriesSelected(String selectedName) {
@@ -462,8 +480,10 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
       'title': _titleEnglish.isNotEmpty ? _titleEnglish : _title,
       'spanish_title': _titleSpanish.trim(),
       'english_title': _titleEnglish.trim(),
+      'romaji_title': _titleRomaji.trim(),
       'series_name': _isStandalone ? null : (_seriesEnglish.isNotEmpty ? _seriesEnglish.trim() : _series.trim()),
       'series_spanish': _isStandalone ? null : _seriesSpanish.trim(),
+      'series_romaji': _seriesRomaji.trim(),
       'volume': _volumeNumber.isNotEmpty ? double.tryParse(_volumeNumber) : null,
       'author': author,
       'illustrator': illustrator,
@@ -473,6 +493,10 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
       'description': _description.trim(),
       'color_mode': _colorMode,
       'is_uncensored': _isUncensored,
+      'isbn': _isbn13.isNotEmpty ? _isbn13.trim() : (_isbn10.isNotEmpty ? _isbn10.trim() : null),
+      'asin': _asin.isNotEmpty ? _asin.trim() : null,
+      'uuid': _identifier.isNotEmpty ? _identifier.trim() : null,
+      'published_date': _publishDate.isNotEmpty ? _publishDate.trim() : null,
     };
 
     await cubit.saveVolume(widget.volume.bookHash, payload);
@@ -513,6 +537,14 @@ class _ZeepubVolumeEditViewState extends State<ZeepubVolumeEditView> {
       listener: (BuildContext context, ZeepubEditorialState state) {
         if (state.latestAiSuggestion != null) {
           _applyAiSuggestion(state);
+        }
+        if (state.activeVolumeDetail != null &&
+            state.activeVolumeDetail!.bookHash == widget.volume.bookHash &&
+            state.activeVolumeDetail != _lastLoadedDetail) {
+          _lastLoadedDetail = state.activeVolumeDetail;
+          setState(() {
+            _loadFromVolume(state.activeVolumeDetail!);
+          });
         }
       },
       builder: (BuildContext context, ZeepubEditorialState state) {

@@ -33,6 +33,8 @@ class ZeepubVolume {
   final int? readingTimeMin;
   final String? isbn;
   final String? asin;
+  final String? uuid;
+  final String? seriesRomaji;
   final String format;
   final String epubVersion;
   final double rating;
@@ -77,6 +79,8 @@ class ZeepubVolume {
     this.readingTimeMin,
     this.isbn,
     this.asin,
+    this.uuid,
+    this.seriesRomaji,
     this.format = 'EPUB',
     this.epubVersion = 'v3.0',
     this.rating = 0.0,
@@ -218,6 +222,8 @@ class ZeepubVolume {
       readingTimeMin: readingTime,
       isbn: json['isbn']?.toString(),
       asin: json['asin']?.toString(),
+      uuid: json['uuid']?.toString(),
+      seriesRomaji: json['series_romaji']?.toString() ?? (seriesInfo != null ? seriesInfo['series_romaji']?.toString() : null),
       format: (json['format'] ?? 'EPUB').toString(),
       epubVersion: (json['epub_version'] ?? 'v3.0').toString(),
       rating: rating,
@@ -258,6 +264,8 @@ class ZeepubVolume {
       'published_date': publishedDate,
       'isbn': isbn,
       'asin': asin,
+      'uuid': uuid,
+      'series_romaji': seriesRomaji,
     };
   }
 
@@ -296,6 +304,8 @@ class ZeepubVolume {
     int? readingTimeMin,
     String? isbn,
     String? asin,
+    String? uuid,
+    String? seriesRomaji,
     String? format,
     String? epubVersion,
     double? rating,
@@ -340,6 +350,8 @@ class ZeepubVolume {
       readingTimeMin: readingTimeMin ?? this.readingTimeMin,
       isbn: isbn ?? this.isbn,
       asin: asin ?? this.asin,
+      uuid: uuid ?? this.uuid,
+      seriesRomaji: seriesRomaji ?? this.seriesRomaji,
       format: format ?? this.format,
       epubVersion: epubVersion ?? this.epubVersion,
       rating: rating ?? this.rating,
