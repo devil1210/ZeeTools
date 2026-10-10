@@ -50,3 +50,7 @@ app.*.map.json
 /android/app/release
 *.freezed.dart
 *.g.dart
+
+# Plugins
+/plugins/
+*.zip

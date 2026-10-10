@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '/common/theme/app_dimensions.dart';
 import '/common/widgets/form_section.dart';
 import '/common/widgets/outlined_dropdown.dart';
+import '../../../plugins/presentation/views/plugins_settings_section.dart';
 import '../cubit/settings_cubit.dart';
 import '../cubit/settings_state.dart';
 
@@ -37,6 +38,8 @@ class SettingsView extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: AppSpacing.large),
+              const PluginsSettingsSection(),
             ],
           );
         },
