@@ -25,6 +25,9 @@ import 'features/search_replace/data/search_replace_settings_repo.dart';
 import 'features/search_replace/presentation/cubit/search_replace_cubit.dart';
 import 'features/settings/data/preferences_repo.dart';
 import 'features/settings/presentation/cubit/settings_cubit.dart';
+import 'features/plugins/data/plugin_registry.dart';
+import 'features/plugins/data/plugin_repository.dart';
+import 'features/plugins/presentation/cubit/plugins_cubit.dart';
 
 final getIt = GetIt.instance;
 
@@ -33,6 +36,12 @@ Future<void> injectDependencies() async {
   final prefs = await SharedPreferences.getInstance();
   getIt.registerLazySingleton<SharedPreferences>(() => prefs);
   final supportDir = await getApplicationSupportDirectory();
+
+  // Plugins System (Picard-style extensible architecture)
+  final pluginRegistry = PluginRegistry();
+  getIt.registerLazySingleton<PluginRegistry>(() => pluginRegistry);
+  getIt.registerLazySingleton<PluginRepository>(() => PluginRepository(getIt()));
+  getIt.registerLazySingleton<PluginsCubit>(() => PluginsCubit(getIt()));
 
   // Repositories
   getIt.registerLazySingleton<EpubRepository>(() => EpubRepositoryImpl());
