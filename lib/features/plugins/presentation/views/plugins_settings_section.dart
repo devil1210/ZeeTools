@@ -217,11 +217,12 @@ class PluginsSettingsSection extends StatelessWidget {
                             value: plugin.isEnabled,
                             onChanged: (val) => cubit.togglePlugin(plugin.id, val),
                           ),
-                          IconButton(
-                            tooltip: 'Eliminar complemento',
-                            icon: Icon(Icons.delete_outline_rounded, color: cs.error, size: 20),
-                            onPressed: () => _confirmUninstall(context, plugin),
-                          ),
+                          if (plugin.directoryPath.isNotEmpty)
+                            IconButton(
+                              tooltip: 'Eliminar complemento',
+                              icon: Icon(Icons.delete_outline_rounded, color: cs.error, size: 20),
+                              onPressed: () => _confirmUninstall(context, plugin),
+                            ),
                         ],
                       ),
                       onTap: () {

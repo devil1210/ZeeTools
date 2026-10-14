@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/plugin_manifest.dart';
+import 'plugin_registry.dart';
 
 class PluginRepository {
   final SharedPreferences _prefs;
@@ -37,24 +38,35 @@ class PluginRepository {
     return pluginsDir;
   }
 
-  Future<List<PluginManifest>> loadPlugins() async {
-    final dir = await getPluginsDirectory();
+  Future<List<PluginManifest>> loadPlugins({PluginRegistry? registry}) async {
     final List<PluginManifest> list = [];
 
-    if (!await dir.exists()) return list;
+    // 1. Cargar complementos registrados en código (nativos/paquetes)
+    if (registry != null) {
+      for (final ext in registry.allExtensions) {
+        final isEnabled = _prefs.getBool('plugin_${ext.id}_enabled') ?? true;
+        list.add(ext.manifest.copyWith(isEnabled: isEnabled));
+      }
+    }
 
-    final entities = dir.listSync();
-    for (final entity in entities) {
-      if (entity is Directory) {
-        final manifestFile = File(p.join(entity.path, 'manifest.json'));
-        if (await manifestFile.exists()) {
-          try {
-            final jsonStr = await manifestFile.readAsString();
-            final jsonMap = jsonDecode(jsonStr) as Map<String, dynamic>;
-            final id = jsonMap['id'] as String? ?? p.basename(entity.path);
-            final isEnabled = _prefs.getBool('plugin_${id}_enabled') ?? true;
-            list.add(PluginManifest.fromJson(jsonMap, entity.path, isEnabled: isEnabled));
-          } catch (_) {}
+    // 2. Cargar complementos desde disco (carpetas o instalados vía ZIP)
+    final dir = await getPluginsDirectory();
+    if (await dir.exists()) {
+      final entities = dir.listSync();
+      for (final entity in entities) {
+        if (entity is Directory) {
+          final manifestFile = File(p.join(entity.path, 'manifest.json'));
+          if (await manifestFile.exists()) {
+            try {
+              final jsonStr = await manifestFile.readAsString();
+              final jsonMap = jsonDecode(jsonStr) as Map<String, dynamic>;
+              final id = jsonMap['id'] as String? ?? p.basename(entity.path);
+              // Evitar duplicados si ya fue cargado desde el registro nativo
+              if (list.any((p) => p.id == id)) continue;
+              final isEnabled = _prefs.getBool('plugin_${id}_enabled') ?? true;
+              list.add(PluginManifest.fromJson(jsonMap, entity.path, isEnabled: isEnabled));
+            } catch (_) {}
+          }
         }
       }
     }
@@ -126,9 +138,11 @@ class PluginRepository {
   }
 
   Future<void> uninstallPlugin(String id, String directoryPath) async {
-    final dir = Directory(directoryPath);
-    if (await dir.exists()) {
-      await dir.delete(recursive: true);
+    if (directoryPath.isNotEmpty) {
+      final dir = Directory(directoryPath);
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+      }
     }
     await _prefs.remove('plugin_${id}_enabled');
   }

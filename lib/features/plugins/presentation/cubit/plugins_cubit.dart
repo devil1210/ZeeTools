@@ -1,19 +1,20 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import '../../data/plugin_registry.dart';
 import '../../data/plugin_repository.dart';
 import 'plugins_state.dart';
 
 class PluginsCubit extends Cubit<PluginsState> {
   final PluginRepository _repository;
+  final PluginRegistry? _registry;
 
-  PluginsCubit(this._repository) : super(const PluginsState()) {
+  PluginsCubit(this._repository, [this._registry]) : super(const PluginsState()) {
     loadPlugins();
   }
 
   Future<void> loadPlugins() async {
     emit(state.copyWith(isLoading: true, errorMessage: null));
     try {
-      final list = await _repository.loadPlugins();
+      final list = await _repository.loadPlugins(registry: _registry);
       emit(state.copyWith(plugins: list, isLoading: false));
     } catch (e) {
       emit(state.copyWith(isLoading: false, errorMessage: 'Error al cargar complementos: $e'));
@@ -30,7 +31,7 @@ class PluginsCubit extends Cubit<PluginsState> {
     emit(state.copyWith(isLoading: true, errorMessage: null, successMessage: null));
     try {
       final installed = await _repository.installPluginFromZip(zipPath);
-      final list = await _repository.loadPlugins();
+      final list = await _repository.loadPlugins(registry: _registry);
       emit(state.copyWith(
         plugins: list,
         isLoading: false,
@@ -44,7 +45,7 @@ class PluginsCubit extends Cubit<PluginsState> {
   Future<void> uninstallPlugin(String id, String directoryPath) async {
     try {
       await _repository.uninstallPlugin(id, directoryPath);
-      final list = await _repository.loadPlugins();
+      final list = await _repository.loadPlugins(registry: _registry);
       emit(state.copyWith(plugins: list, successMessage: 'Complemento desinstalado.'));
     } catch (e) {
       emit(state.copyWith(errorMessage: 'Error al desinstalar: $e'));

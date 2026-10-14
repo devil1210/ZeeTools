@@ -28,6 +28,7 @@ import 'features/settings/presentation/cubit/settings_cubit.dart';
 import 'features/plugins/data/plugin_registry.dart';
 import 'features/plugins/data/plugin_repository.dart';
 import 'features/plugins/presentation/cubit/plugins_cubit.dart';
+import 'plugins_init.dart';
 
 final getIt = GetIt.instance;
 
@@ -39,9 +40,10 @@ Future<void> injectDependencies() async {
 
   // Plugins System (Picard-style extensible architecture)
   final pluginRegistry = PluginRegistry();
+  registerCustomPlugins(pluginRegistry);
   getIt.registerLazySingleton<PluginRegistry>(() => pluginRegistry);
   getIt.registerLazySingleton<PluginRepository>(() => PluginRepository(getIt()));
-  getIt.registerLazySingleton<PluginsCubit>(() => PluginsCubit(getIt()));
+  getIt.registerLazySingleton<PluginsCubit>(() => PluginsCubit(getIt(), getIt<PluginRegistry>()));
 
   // Repositories
   getIt.registerLazySingleton<EpubRepository>(() => EpubRepositoryImpl());

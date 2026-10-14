@@ -39,4 +39,7 @@ class PluginRegistry {
 
   /// Whether an extension is registered under [id].
   bool has(String id) => _extensions.containsKey(id);
+
+  /// Returns a list of all currently registered [ZeeToolsPluginExtension] instances.
+  List<ZeeToolsPluginExtension> get allExtensions => _extensions.values.toList();
 }

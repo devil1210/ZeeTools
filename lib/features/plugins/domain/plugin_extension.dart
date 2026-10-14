@@ -36,6 +36,19 @@ abstract class ZeeToolsPluginExtension {
   /// Must match the `"id"` field in the plugin's `manifest.json` exactly.
   String get id;
 
+  /// The declarative metadata and manifest for this plugin extension.
+  ///
+  /// Can be overridden to declare the plugin's name, version, icon, and
+  /// description directly in code for built-in or package-based plugins.
+  PluginManifest get manifest => PluginManifest(
+        id: id,
+        name: id,
+        version: '1.0.0',
+        author: 'ZeeTools Extension',
+        description: '',
+        directoryPath: '',
+      );
+
   /// Builds the root view for this plugin.
   ///
   /// Called when the user navigates to the plugin's route (`/plugin/:id`).

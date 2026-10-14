@@ -13,6 +13,15 @@ class _MockExtension implements ZeeToolsPluginExtension {
   String get id => _id;
 
   @override
+  PluginManifest get manifest => PluginManifest(
+        id: _id,
+        name: 'Mock $_id',
+        version: '1.0.0',
+        author: 'Test',
+        description: 'Test mock extension',
+      );
+
+  @override
   Widget buildView(BuildContext context, PluginManifest manifest) => Text('Plugin View $_id');
 }
 
@@ -98,6 +107,15 @@ void main() {
       expect(registry.get('tool_a'), equals(extA));
       expect(registry.get('tool_b'), equals(extB));
       expect(registry.get('tool_c'), equals(extC));
+    });
+
+    test('allExtensions returns all registered extensions', () {
+      final registry = PluginRegistry();
+      const extA = _MockExtension('tool_a');
+      const extB = _MockExtension('tool_b');
+      registry.register(extA);
+      registry.register(extB);
+      expect(registry.allExtensions, containsAll([extA, extB]));
     });
   });
 }

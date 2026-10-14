@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zeetools/features/plugins/data/plugin_registry.dart';
 import 'package:zeetools/features/plugins/data/plugin_repository.dart';
 import 'package:zeetools/features/plugins/domain/plugin_manifest.dart';
 import 'package:zeetools/features/plugins/presentation/cubit/plugins_cubit.dart';
@@ -18,7 +19,7 @@ class FakePluginRepository implements PluginRepository {
   bool openFolderCalled = false;
 
   @override
-  Future<List<PluginManifest>> loadPlugins() async {
+  Future<List<PluginManifest>> loadPlugins({PluginRegistry? registry}) async {
     if (throwOnLoad) throw Exception('disco lleno');
     return pluginsToReturn;
   }

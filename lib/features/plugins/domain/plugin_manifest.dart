@@ -50,7 +50,7 @@ class PluginManifest {
     required this.description,
     this.icon = 'extension',
     this.isEnabled = true,
-    required this.directoryPath,
+    this.directoryPath = '',
     this.entryPoint,
     this.extra = const {},
   });
