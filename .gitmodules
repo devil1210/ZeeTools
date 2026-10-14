@@ -1,0 +1,3 @@
+[submodule "lib/features/zeepub_editorial"]
+	path = lib/features/zeepub_editorial
+	url = https://github.com/devil1210/zeepub_plugins.git

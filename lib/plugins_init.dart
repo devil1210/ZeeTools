@@ -1,4 +1,5 @@
 import 'features/plugins/data/plugin_registry.dart';
+import 'features/zeepub_editorial/zeepub_plugins.dart';
 
 /// Punto de extensión para registrar complementos y paquetes en ZeeTools.
 ///
@@ -6,5 +7,5 @@ import 'features/plugins/data/plugin_registry.dart';
 /// se registran aquí para integrarse automáticamente en el Dashboard,
 /// la pantalla de configuración y el sistema de navegación.
 void registerCustomPlugins(PluginRegistry registry) {
-  // Aquí se llamarán los registros de paquetes externos como zeepub_plugins.
+  registerZeepubPlugins(registry);
 }
